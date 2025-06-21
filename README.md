@@ -3,6 +3,19 @@
 A modular, minimal dotfiles setup managed with [GNU Stow](https://www.gnu.org/software/stow/).
 Each tool lives in its own directory and is easy to track, modify, or replace.
 
+## 🧭 Table of Contents
+
+- [🧩 Getting Started](#-getting-started)
+- [🧰 Requirements](#-requirements)
+- [🛠️ Tools](#-tools)
+    - [🔧 Git](#-git)
+    - [🧩 Neovim](#-neovim)
+    - [🐚 Zsh](#-zsh)
+    - [📦 asdf](#-asdf)
+    - [🐙 GitHub CLI (gh)](#-github-cli-gh)
+- [📁 Layout](#-layout)
+- [🧠 Philosophy](#-philosophy)
+
 ## ⚡ Getting Started
 
 ```bash
@@ -11,7 +24,7 @@ cd ~/.dotfiles
 stow git zsh nvim asdf gh
 ```
 
-## 🔧 Assumptions
+## 🔧 Requirements
 
 * You have [`git`](https://git-scm.com/) installed.
 * You have [`gh`](https://cli.github.com/) installed and authenticated via `gh auth login`.
@@ -19,7 +32,8 @@ stow git zsh nvim asdf gh
 
 ## 📦 Tools
 
-### [git](./git)
+### 🔧 Git
+[→ See full README](./git/README.md)
 
 Opinionated `git` setup with dozens of helpful aliases, delta-powered diffs, and scoped overrides.
 
@@ -32,11 +46,10 @@ git ca      # add all and commit verbosely
 git all pull  # pull across all sub-repos
 ```
 
-See [git/README.md](./git/README.md) for full details.
-
 ---
 
-### [zsh](./zsh)
+### 🐚 Zsh
+[→ See full README](./zsh/README.md)
 
 Zsh configuration split into modular files and sourced from `.zshrc`. Includes:
 
@@ -46,20 +59,22 @@ Zsh configuration split into modular files and sourced from `.zshrc`. Includes:
 
 ---
 
-### [nvim](./nvim)
+### 🧩 Neovim
+[→ See full README](./nvim/README.md)
 
 Neovim configuration written in Lua. Fast startup, modern plugins, sane defaults.
 
 ---
-
-### [asdf](./asdf)
+### 📦 asdf
+[→ See full README](./asdf/README.md)
 
 Handles language runtime management with [`asdf-vm`](https://asdf-vm.com).
 Includes support for popular plugins and auto-install via `.tool-versions`.
 
 ---
 
-### [gh](./gh)
+### 🐙 GitHub CLI (gh)
+[→ See full README](./gh/README.md)
 
 GitHub CLI configuration. Tokens and credentials are not tracked in git.
 

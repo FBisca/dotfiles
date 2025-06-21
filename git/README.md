@@ -10,7 +10,7 @@ It’s clean, public, and free of personal identity — ready to be dropped onto
 
 * ✅ **Safe to share**: no name, no email, no GPG keys
 * 🧠 **Curated**: useful aliases, smart defaults, and powerful patterns
-* �� **Modular**: identity and per-project settings handled via `includeIf`
+* 🧩 **Modular**: identity and per-project settings handled via `includeIf`
 
 ---
 
@@ -110,33 +110,12 @@ This config also includes:
 
 ---
 
-## 💠 Setup
-
-1. Install [`stow`](https://www.gnu.org/software/stow/) if you haven’t:
-
-   ```bash
-   sudo apt install stow
-   ```
-
-2. From inside your `dotfiles` repo:
-
-   ```bash
-   stow git
-   ```
-
-3. Create your local identity override:
-
-   ```bash
-   touch ~/.config/git/config.local
-   ```
-
-4. Paste your personal info (see the [Private Identity](#private-identity-with-includeif) section above)
-
----
-
 ## 💥 Final Thoughts
 
 This config is designed to be elegant, extensible, and safe — whether you're spinning up a new dev box or sharing setup ideas with friends.
 
 Use it, tweak it, fork it. Just don’t add your name and email to the wrong file 😉.
 
+---
+
+🧩 Return to [dotfiles root](../README.md) for setup instructions and tool list.

@@ -4,4 +4,8 @@
 # [gh]
 gh/.config/gh/hosts.yml
 
+# [nvim]
+nvim/.config/nvim/lazy-lock.json
+
+
 .idea/

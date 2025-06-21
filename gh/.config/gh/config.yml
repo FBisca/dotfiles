@@ -3,4 +3,6 @@ git_protocol: ssh
 aliases:
   co: pr checkout
 spinner: enabled
+editor: nvim
+prompt: enabled
 

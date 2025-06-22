@@ -6,6 +6,9 @@
   untrackedCache = true
   pager = delta
 
+[init]
+  defaultBranch = main
+
 [color]
   ui = auto
 

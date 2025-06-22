@@ -1,5 +1,5 @@
 # Ignore private Git identity overrides
-.config/git/*/
+git/.config/git/*/
 
 # [gh]
 gh/.config/gh/hosts.yml

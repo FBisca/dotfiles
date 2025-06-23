@@ -80,3 +80,5 @@
 [includeIf "gitdir:~/"]
   path = ~/.config/git/private/config.local
 
+[includeIf "gitdir:~/dev/cbh/"]
+  path = ~/.config/git/clipboard/config.local

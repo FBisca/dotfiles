@@ -41,3 +41,17 @@ show_pretty_json() {
   done
 }
 
+# pretty print an env file
+penv() {
+  local envfile="${1:-.env}"
+
+  if [[ ! -f "$envfile" ]]; then
+    echo "❌ File not found: $envfile" >&2
+    return 1
+  fi
+
+  grep -v '^\s*#' "$envfile" | grep -v '^\s*$' | sort | \
+    awk -F= '{
+      printf "\033[1;36m%-30s\033[0m = \033[0;32m%s\033[0m\n", $1, $2
+    }'
+}

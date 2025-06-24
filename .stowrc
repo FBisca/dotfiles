@@ -1,0 +1,5 @@
+--target=~
+--dir=.
+--ignore=.stow-local-ignore
+--verbose=2
+

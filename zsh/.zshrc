@@ -21,4 +21,3 @@ source $ZSH/oh-my-zsh.sh
 for file in ~/.zsh/*.zsh; do
   source "$file"
 done
-

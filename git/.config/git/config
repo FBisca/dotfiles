@@ -5,6 +5,7 @@
   precomposeunicode = false
   untrackedCache = true
   pager = delta
+	editor = lvim
 
 [init]
   defaultBranch = main
@@ -77,8 +78,11 @@
 [credential]
   helper = !gh auth git-credential
 
-[includeIf "gitdir:~/"]
+[includeIf "gitdir:~/dev/private/"]
   path = ~/.config/git/private/config.local
 
 [includeIf "gitdir:~/dev/cbh/"]
   path = ~/.config/git/clipboard/config.local
+
+[includeIf "gitdir:~/"]
+  path = ~/.config/git/private/config.local

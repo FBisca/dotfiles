@@ -55,3 +55,10 @@ penv() {
       printf "\033[1;36m%-30s\033[0m = \033[0;32m%s\033[0m\n", $1, $2
     }'
 }
+
+# export all the values from an .env file as environment variables
+load-env() {
+  set -a
+  source "${1:-.env}"
+  set +a
+}

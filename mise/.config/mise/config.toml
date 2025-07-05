@@ -1,0 +1,16 @@
+[tools]
+"cargo:eza" = "latest"
+"cargo:bat" = "latest"
+"cargo:git-delta" = "latest"
+"cargo:rage" = "latest" # provides `rage` and `age` binaries
+"cargo:ripgrep" = "latest" # provides `rg`
+"cargo:fd-find" = "latest" 
+
+[settings]
+experimental = true
+verbose = false
+legacy_version_file = true
+idiomatic_version_file_enable_tools = ["node"]
+jobs = 6
+not_found_auto_install = true
+asdf_compat = true

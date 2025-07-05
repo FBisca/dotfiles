@@ -5,6 +5,9 @@
 "cargo:rage" = "latest" # provides `rage` and `age` binaries
 "cargo:ripgrep" = "latest" # provides `rg`
 "cargo:fd-find" = "latest" 
+rust = "1.88.0"
+node = "22.14.0"
+terraform = "1.11.4"
 
 [settings]
 experimental = true

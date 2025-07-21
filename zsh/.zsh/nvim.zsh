@@ -1,3 +1,3 @@
 # Neovim aliases
-alias vim='nvim'
-alias vi='nvim'
+alias vim='lvim'
+alias vi='lvim'

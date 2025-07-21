@@ -1,13 +1,21 @@
 [tools]
+rust = "1.88.0"
 "cargo:eza" = "latest"
 "cargo:bat" = "latest"
 "cargo:git-delta" = "latest"
 "cargo:rage" = "latest" # provides `rage` and `age` binaries
 "cargo:ripgrep" = "latest" # provides `rg`
 "cargo:fd-find" = "latest" 
-rust = "1.88.0"
+"cargo:ncspot" = "latest"
+"cargo:viu" = "latest"
+
 node = "22.14.0"
+"npm:commitizen" = "latest"
+"npm:turbo" = "latest"
+
 terraform = "1.11.4"
+zig = "0.14.1"
+pnpm = "10.13.1"
 
 [settings]
 experimental = true

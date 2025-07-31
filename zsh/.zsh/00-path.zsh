@@ -2,12 +2,17 @@
 setopt extended_glob null_glob
 
 path=(
+  $HOME/.local/bin                            # rc aliases need to come first
+  $HOME/bin
   $path                                       # Keep existing PATH
   $HOME/.local/share/mise/bin
-  $HOME/.local/bin
-  $HOME/bin
   $HOME/.cargo/bin
   $HOME/.fzf/bin
+  $HOME/.local/lib/npm-global/bin
+
+  # dev tools
+  $HOME/dev/apps/jetbrains-toolbox-2.7.0.48109/bin
+  $HOME/.fly/bin
 
   # mise-installed tools (explicitly listed)
   $HOME/.local/share/mise/installs/cargo-eza/0.22.0/bin
@@ -21,6 +26,7 @@ path=(
   $HOME/.local/share/mise/installs/npm-commitizen/4.3.1/bin
   $HOME/.local/share/mise/installs/terraform/1.11.4
   $HOME/.local/share/mise/installs/zig/0.14.1/bin
+  $HOME/.local/share/mise/installs/fzf/0.64.0
 
   # Homebrew (if used)
   /home/linuxbrew/.linuxbrew/bin
@@ -34,25 +40,6 @@ path=(
   /sbin
   /bin
 
-  # WSL interop
-  /usr/lib/wsl/lib
-  /mnt/c/WINDOWS/system32
-  /mnt/c/WINDOWS
-  /mnt/c/WINDOWS/System32/Wbem
-  /mnt/c/WINDOWS/System32/WindowsPowerShell/v1.0/
-  /mnt/c/WINDOWS/System32/OpenSSH/
-  /mnt/c/Program Files/NVIDIA Corporation/NVIDIA App/NvDLISR
-  /mnt/c/Program Files (x86)/NVIDIA Corporation/PhysX/Common
-  /mnt/c/Program Files/whkd/bin/
-  /mnt/c/Program Files/komorebi/bin/
-  /mnt/c/Program Files/Docker/Docker/resources/bin
-  /mnt/c/Program Files/YASB/
-  /mnt/c/Program Files/dotnet/
-  /mnt/c/Users/Rodrigo/AppData/Local/Programs/cursor/resources/app/bin
-  /mnt/c/Users/Rodrigo/AppData/Local/Microsoft/WindowsApps
-  /mnt/c/Users/Rodrigo/AppData/Local/JetBrains/Toolbox/scripts
-  /mnt/c/Users/Rodrigo/AppData/Local/Programs/Microsoft VS Code/bin
-  /mnt/c/Users/Rodrigo/.dotnet/tools
 )
 
 typeset -U path

@@ -1,0 +1,8 @@
+description: Generate a Mongo-style ObjectID
+runner: bash
+passContext: true
+options:
+  - name: profile
+    type: string
+    description: Use a profile context
+    suggestions: [dev, prod, staging] 

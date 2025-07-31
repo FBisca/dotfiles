@@ -1,1 +1,1 @@
-eval "$("$HOME/.local/share/mise/bin/mise" activate zsh)"
+"$HOME/.local/bin/mise" activate zsh | source /dev/stdin

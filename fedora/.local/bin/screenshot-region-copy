@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+FILE=$(mktemp --suffix .png)
+grim -g "$(slurp)" "$FILE" && wl-copy < "$FILE"
+notify-send "📸 Screenshot copied to clipboard"
+

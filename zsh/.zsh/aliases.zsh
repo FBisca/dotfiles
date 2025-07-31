@@ -1,5 +1,4 @@
 # ── Utilities ──────────────────────────────────────────────────────────────
-alias bat='batcat'                         # Pretty cat with syntax highlighting
 alias aliases="grep -E '^alias |^# ---' ~/.zsh/aliases.zsh | bat --language=sh --style=plain --paging=never"
 
 # ── File Management (eza) ───────────────────────────────────────────────────

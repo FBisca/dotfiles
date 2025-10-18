@@ -1,4 +1,4 @@
-# 🛠️ Rodrigo's Dotfiles
+# 🛠️ Dotfiles
 
 A modular, minimal dotfiles setup managed with [GNU Stow](https://www.gnu.org/software/stow/).
 Each tool lives in its own directory and is easy to track, modify, or replace.
@@ -18,17 +18,19 @@ Each tool lives in its own directory and is easy to track, modify, or replace.
 
 ## ⚡ Getting Started
 
+### Quick Install
+
 ```bash
-git clone https://github.com/rodrigopsasaki/dotfiles ~/.dotfiles
+git clone https://github.com/Fbisca/dotfiles ~/.dotfiles
 cd ~/.dotfiles
-stow git zsh nvim mise gh
+./install.sh
 ```
 
 ## 🔧 Requirements
 
 - You have [`git`](https://git-scm.com/) installed.
 - You have [`gh`](https://cli.github.com/) installed and authenticated via `gh auth login`.
-- Your system supports symlinks (tested on Linux with GNU Stow).
+- Your system supports symlinks (tested on macOS ARM with GNU Stow).
 
 ## 📦 Tools
 
@@ -103,7 +105,12 @@ Each tool has its own folder. Use `stow <tool>` to activate.
 ├── zsh/
 ├── nvim/
 ├── mise/
-└── gh/
+├── gh/
+├── kitty/
+├── wezterm/
+├── fzf/
+├── env/
+└── slack/
 ```
 
 ---

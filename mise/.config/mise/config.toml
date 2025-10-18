@@ -1,20 +1,11 @@
 [tools]
-rust = "1.88.0"
-"cargo:eza" = "latest"
-"cargo:rage" = "latest" # provides `rage` and `age` binaries
-"cargo:ripgrep" = "latest" # provides `rg`
-"cargo:fd-find" = "latest" 
-"cargo:ncspot" = "latest"
-"cargo:viu" = "latest"
-
+# Essential development tools
 node = "22.14.0"
-"npm:commitizen" = "latest"
-"npm:turbo" = "latest"
-
-terraform = "1.11.4"
-zig = "0.14.1"
-pnpm = "10.13.1"
 python = "3.13.5"
+
+# Package managers
+pnpm = "10.13.1"
+npm = "latest"
 
 [settings]
 experimental = true

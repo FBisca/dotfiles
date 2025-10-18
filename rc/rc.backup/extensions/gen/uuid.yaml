@@ -1,8 +1,0 @@
-description: Generate a random UUID
-runner: node
-passContext: false
-options:
-  - name: format
-    type: string
-    description: Output format (default, uppercase, lowercase)
-    suggestions: [default, uppercase, lowercase] 

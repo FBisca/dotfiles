@@ -18,9 +18,3 @@ lta() {                                                    # Full tree view, 2 l
   eza --tree --level="$level" --icons "$@"
 }
 
-# -- Project Specific -----
-# Clipboard shift systems
-alias gcs='cd ~/dev/cbh/open-shifts/curated-shifts'
-alias gos='cd ~/dev/cbh/open-shifts'
-alias gbff='cd ~/dev/cbh/worker-app-bff'
-

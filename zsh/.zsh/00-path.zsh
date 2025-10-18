@@ -9,6 +9,9 @@ path=(
   $HOME/.fzf/bin
   $HOME/.local/lib/npm-global/bin
 
+  # Node.js package managers
+  $HOME/Library/pnpm
+
   # mise-installed tools (dynamic paths)
   $HOME/.local/share/mise/installs/*/bin
   $HOME/.local/share/mise/installs/*/current/bin

@@ -1,3 +1,6 @@
+# Git Configuration
+# This is a shared, modular Git configuration that's safe to share publicly.
+
 [core]
   excludesfile = ~/.config/git/gitignore.global
   whitespace = space-before-tab,-indent-with-non-tab,trailing-space
@@ -8,26 +11,41 @@
 	editor = nvim
 
 [init]
-  defaultBranch = main
+    defaultBranch = main
+
+[push]
+    default = simple
+    followTags = true
+
+[pull]
+    rebase = true
+
+[merge]
+    conflictstyle = diff3
+    tool = nvim
+
+[diff]
+    tool = nvim
+    colorMoved = default
 
 [color]
-  ui = auto
+    ui = auto
 
 [color "branch"]
-  current = yellow reverse
-  local = yellow
-  remote = green
+    current = yellow reverse
+    local = yellow
+    remote = green
 
 [color "diff"]
-  meta = yellow bold
-  frag = magenta bold
-  old = red
-  new = green
+    meta = yellow bold
+    frag = magenta bold
+    old = red bold
+    new = green bold
 
 [color "status"]
-  added = yellow
-  changed = green
-  untracked = cyan
+    added = yellow
+    changed = green
+    untracked = cyan
 
 [alias]
   l = log --date-order --date=iso --graph --full-history -n 30 --pretty=format:'%x08%x09%C(auto)%h %C(cyan)%ar%Creset %C(auto)%aN%C(reset)%C(auto)%d %C(auto)%s'

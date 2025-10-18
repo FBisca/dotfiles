@@ -1,5 +1,0 @@
-description: Generate various types of data (UUIDs, ObjectIDs, random strings)
-options:
-  - name: help
-    type: string
-    description: Show help for specific generator 

@@ -1,4 +1,5 @@
 # .stow-local-ignore
 .aws
 .azure
+\.DS_Store
 

@@ -13,11 +13,11 @@ export HOMEBREW_NO_INSTALL_CLEANUP=1
 # Silence brew doctor if you don’t care
 # export HOMEBREW_NO_EMOJI=1
 
-# Ensure everything resolves through Linuxbrew in WSL
-export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
-export PATH="/home/linuxbrew/.linuxbrew/sbin:$PATH"
-export MANPATH="/home/linuxbrew/.linuxbrew/share/man:$MANPATH"
-export INFOPATH="/home/linuxbrew/.linuxbrew/share/info:$INFOPATH"
+# macOS Homebrew paths
+export PATH="/opt/homebrew/bin:$PATH"
+export PATH="/opt/homebrew/sbin:$PATH"
+export MANPATH="/opt/homebrew/share/man:$MANPATH"
+export INFOPATH="/opt/homebrew/share/info:$INFOPATH"
 
-# Initialize Homebrew environment (Linuxbrew path setup for WSL)
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+# Initialize Homebrew environment
+eval "$(/opt/homebrew/bin/brew shellenv)"

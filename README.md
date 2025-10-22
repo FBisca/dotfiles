@@ -3,6 +3,8 @@
 A modular, minimal dotfiles setup managed with [GNU Stow](https://www.gnu.org/software/stow/).
 Each tool lives in its own directory and is easy to track, modify, or replace.
 
+Special thanks to [rodrigopsasaki](https://github.com/rodrigopsasaki), the original author of the repository this project was forked from.
+
 ## 🧭 Table of Contents
 
 - [🧩 Getting Started](#-getting-started)

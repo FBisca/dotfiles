@@ -30,6 +30,7 @@ cd ~/.dotfiles
 
 ## 🔧 Requirements
 
+- You have [`stow`](https://www.gnu.org/software/stow/) installed.
 - You have [`git`](https://git-scm.com/) installed.
 - You have [`gh`](https://cli.github.com/) installed and authenticated via `gh auth login`.
 - Your system supports symlinks (tested on macOS ARM with GNU Stow).

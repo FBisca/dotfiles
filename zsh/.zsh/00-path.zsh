@@ -16,6 +16,9 @@ path=(
   $HOME/.local/share/mise/installs/*/bin
   $HOME/.local/share/mise/installs/*/current/bin
 
+  # Flutter paths
+  $HOME/developer/flutter/bin
+
   # Homebrew paths
   /opt/homebrew/bin
   /opt/homebrew/sbin

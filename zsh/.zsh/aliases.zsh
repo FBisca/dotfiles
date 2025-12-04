@@ -7,3 +7,15 @@ alias ll='eza -lah --group-directories-first --icons'     # Long + hidden + huma
 alias la='eza -a --group-directories-first --icons'       # Show all files, including dotfiles
 
 
+# --- Utilities functions ---
+lt() {                                                    # Filtered tree view, 2 levels deep by default
+  local level=${1:-2}
+  shift
+  eza --tree --level="$level" --icons --ignore-glob='node_modules|dist|.git|.turbo' "$@"
+}
+
+lta() {                                                    # Full tree view, 2 levels deep by default
+  local level=${1:-2}
+  shift
+  eza --tree --level="$level" --icons "$@"
+}

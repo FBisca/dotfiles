@@ -4,4 +4,4 @@ aliases:
     co: pr checkout
 spinner: enabled
 editor: nvim
-prompt: enabled
+prompt: disabled

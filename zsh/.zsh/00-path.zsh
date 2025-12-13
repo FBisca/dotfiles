@@ -18,6 +18,7 @@ path=(
 
   # Flutter paths
   $HOME/developer/flutter/bin
+  $HOME/.pub-cache/bin
 
   # Homebrew paths
   /opt/homebrew/bin

@@ -40,3 +40,38 @@ lta() {                                                    # Full tree view, 2 l
   shift
   eza --tree --level="$level" --icons "$@"
 }
+
+# --- macOS Natural Scroll ---
+natural-scroll-status() {
+  local current
+  current=$(defaults read -g com.apple.swipescrolldirection 2>/dev/null || echo 1)
+  if [[ "$current" == "1" ]]; then
+    echo "Natural scroll: ON"
+  else
+    echo "Natural scroll: OFF"
+  fi
+}
+
+natural-scroll-on() {
+  defaults write -g com.apple.swipescrolldirection -boolean YES
+  echo "Natural scroll enabled"
+  killall cfprefsd
+}
+
+natural-scroll-off() {
+  defaults write -g com.apple.swipescrolldirection -boolean NO
+  echo "Natural scroll disabled"
+  killall cfprefsd
+}
+
+natural-scroll-toggle() {
+  local current
+  current=$(defaults read -g com.apple.swipescrolldirection 2>/dev/null || echo 1)
+
+  if [[ "$current" == "1" ]]; then
+    natural-scroll-off
+  else
+    natural-scroll-on
+  fi
+}
+

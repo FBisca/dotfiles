@@ -1,6 +1,6 @@
 
 # bun completions
-[ -s "/Users/fbisca/.bun/_bun" ] && source "/Users/fbisca/.bun/_bun"
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
 # bun
 export BUN_INSTALL="$HOME/.bun"

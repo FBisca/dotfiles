@@ -1,8 +1,6 @@
 # LLM Stuff
 
-CLAUDE.md
-.cursorrules
-.claude/
+.claude/settings.local.json
 
 ## Local History Plugin
 .history/

@@ -21,7 +21,7 @@ h-db-sync() {
     echo "🔄 Syncing database from production server..." && \
     ssh -A ${ICONIC_SSH_USER}@${ICONIC_SSH_HOST} "docker exec db mysqldump -u ${ICONIC_DB_USER} -p${ICONIC_DB_PASSWORD} ${ICONIC_DB_NAME}" > db_dump.sql && \
     echo "🔄 Database dumped successfully" && \
-    yarn docker:db:init && \
+    pnpm docker:db:init && \
     echo "✅ Database synced successfully"
 
   cd "$original_dir"

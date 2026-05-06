@@ -5,12 +5,10 @@ path=(
   $HOME/bin
   $path                                       # Keep existing PATH
   $HOME/.local/share/mise/bin
+  $HOME/.local/share/mise/shims
   $HOME/.cargo/bin
   $HOME/.fzf/bin
   $HOME/.local/lib/npm-global/bin
-
-  # Node.js package managers
-  $HOME/Library/pnpm
 
   # mise-installed tools (dynamic paths)
   $HOME/.local/share/mise/installs/*/bin
@@ -45,4 +43,3 @@ path() {
     ((i++))
   done
 }
-

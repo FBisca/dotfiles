@@ -1,14 +1,3 @@
-# PNPM home directory
-export PNPM_HOME="${HOME}/Library/pnpm"
-
-# Add PNPM to PATH if it exists and isn't already in PATH
-if [[ -d "$PNPM_HOME" ]]; then
-  case ":$PATH:" in
-    *":$PNPM_HOME:"*) ;;
-    *) export PATH="$PNPM_HOME:$PATH" ;;
-  esac
-fi
-
 # Function to show pnpm scripts in a pretty format
 pnpm() {
   case "$1" in

@@ -4,6 +4,16 @@ git/.config/git/*/
 # [gh]
 gh/.config/gh/hosts.yml
 
+# [claude]
+agents/.claude/chrome/chrome-native-host
+
+# [codex]
+agents/.codex/auth.json
+agents/.codex/config.local.toml
+
+# [copilot]
+agents/.copilot/config.local.json
+
 # [nvim]
 nvim/.config/nvim/lazy-lock.json
 
@@ -11,3 +21,4 @@ nvim/.config/nvim/lazy-lock.json
 zsh/.zsh/secrets/
 
 .idea/
+.DS_Store

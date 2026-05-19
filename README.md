@@ -35,6 +35,8 @@ cd ~/.dotfiles
 - You have [`gh`](https://cli.github.com/) installed and authenticated via `gh auth login`.
 - Your system supports symlinks (tested on macOS ARM with GNU Stow).
 
+If `~/.claude`, `~/.codex`, `~/.agents`, or `~/.copilot` already exist on a machine, move the tracked files into this repo first or run `stow --adopt agents` once before using the full installer.
+
 ## 📦 Tools
 
 ### 🔧 Git
@@ -98,6 +100,19 @@ gh auth login
 
 ---
 
+### 🤖 Agent Tooling
+
+Shared agent configuration is also tracked for local CLI tools:
+
+- `agents/.claude` stores shared Claude Code settings plus custom agents and commands.
+- `agents/.codex` stores shared Codex defaults and command rules. Sensitive MCP credentials stay in local overrides.
+- `agents/.agents` stores reusable custom skills.
+- `agents/.copilot` stores shared GitHub Copilot skill bundles and sanitized local preferences.
+
+Install everything with `stow agents` or let `./install.sh` treat it like any other module.
+
+---
+
 ## 📁 Layout
 
 Each tool has its own folder. Use `stow <tool>` to activate.
@@ -113,7 +128,12 @@ Each tool has its own folder. Use `stow <tool>` to activate.
 ├── wezterm/
 ├── fzf/
 ├── env/
-└── slack/
+├── slack/
+└── agents/
+  ├── .agents/
+  ├── .claude/
+  ├── .codex/
+  └── .copilot/
 ```
 
 ---

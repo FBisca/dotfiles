@@ -1,0 +1,21 @@
+personality = "pragmatic"
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+
+[mcp_servers.notion]
+url = "https://mcp.notion.com/mcp"
+
+[mcp_servers.langchain-docs]
+url = "https://docs.langchain.com/mcp"
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["@playwright/mcp@latest"]
+
+[mcp_servers.hypha]
+command = "npx"
+args = ["-y", "hypha-mcp"]
+
+# Keep sensitive or machine-specific Codex settings in ~/.codex/config.local.toml.
+# Examples: MCP API keys, trusted project paths, marketplace cache paths, auth.

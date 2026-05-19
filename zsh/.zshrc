@@ -58,6 +58,7 @@ done
 
 export PATH="/opt/homebrew/opt/php@8.2/bin:$PATH"
 export PATH="/opt/homebrew/opt/php@8.1/bin:$PATH"
+export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
 
 # opencode
 export PATH="$HOME/.opencode/bin:$PATH"

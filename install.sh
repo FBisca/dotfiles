@@ -62,6 +62,7 @@ MODULES=(
     "fzf"
     "env"
     "slack"
+    "agents"
 )
 
 # Install each module

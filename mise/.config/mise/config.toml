@@ -3,7 +3,7 @@
 node = "22.19.0"
 python = "3.11.14"
 npm = "latest"
-"npm:pnpm" = "11.0.6"
+"npm:pnpm" = "11.0.8"
 
 [settings]
 experimental = true

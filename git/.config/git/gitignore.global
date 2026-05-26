@@ -4,3 +4,8 @@
 
 ## Local History Plugin
 .history/
+
+**/.claude/settings.local.json
+
+## pnpm
+.pnpm-store/

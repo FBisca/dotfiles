@@ -3,11 +3,42 @@ model = "gpt-5.4"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp", "--api-key", "$CONTEXT7_API_KEY"]
+
+[mcp_servers.stitch]
+url = "https://stitch.googleapis.com/mcp"
+
+[mcp_servers.stitch.http_headers]
+X-Goog-Api-Key = "$STITCH_API_KEY"
+
+[mcp_servers.stitch.tools.create_design_system]
+approval_mode = "approve"
+
+[mcp_servers.stitch.tools.create_design_system_from_design_md]
+approval_mode = "approve"
+
+[mcp_servers.stitch.tools.generate_screen_from_text]
+approval_mode = "approve"
+
+[mcp_servers.stitch.tools.upload_design_md]
+approval_mode = "approve"
+
 [mcp_servers.notion]
 url = "https://mcp.notion.com/mcp"
 
 [mcp_servers.langchain-docs]
 url = "https://docs.langchain.com/mcp"
+
+[mcp_servers.langchain-docs.tools.query_docs_filesystem_docs_by_lang_chain]
+approval_mode = "approve"
+
+[mcp_servers.langchain-docs.tools.search_docs_by_lang_chain]
+approval_mode = "approve"
 
 [mcp_servers.playwright]
 command = "npx"
@@ -17,5 +48,30 @@ args = ["@playwright/mcp@latest"]
 command = "npx"
 args = ["-y", "hypha-mcp"]
 
-# Keep sensitive or machine-specific Codex settings in ~/.codex/config.local.toml.
-# Examples: MCP API keys, trusted project paths, marketplace cache paths, auth.
+[mcp_servers.supabase]
+url = "http://localhost:54321/mcp"
+
+[marketplaces.openai-bundled]
+last_updated = "2026-05-27T20:55:59Z"
+source_type = "local"
+source = "/Users/fbisca/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-05-21T18:05:54Z"
+source_type = "local"
+source = "/Users/fbisca/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[notice.model_migrations]
+"gpt-5.4" = "gpt-5.5"

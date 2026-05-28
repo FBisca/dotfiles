@@ -75,3 +75,33 @@ natural-scroll-toggle() {
   fi
 }
 
+# --- Claude Code / Ollama profiles ---
+# Vanilla Anthropic Claude Code remains:
+#   claude
+#
+# Do not globally export ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN,
+# or ANTHROPIC_API_KEY. Ollama routing should be opt-in only.
+alias claude-chino='ollama launch claude --model deepseek-v4-pro:cloud'
+alias claude-glm='ollama launch claude --model glm-5.1:cloud'
+
+claude-ollama() {
+  local model="${1:-deepseek-v4-pro:cloud}"
+
+  if [[ $# -gt 0 ]]; then
+    shift
+  fi
+
+  ollama launch claude --model "$model" "$@"
+}
+
+claude-ollama-p() {
+  local model="${1:-deepseek-v4-pro:cloud}"
+
+  if [[ $# -gt 0 ]]; then
+    shift
+  fi
+
+  ollama launch claude --model "$model" -- "$@"
+}
+# --- End Claude Code / Ollama profiles ---
+

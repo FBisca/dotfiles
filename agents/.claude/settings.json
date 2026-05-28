@@ -3,6 +3,11 @@
     "commit": "",
     "pr": ""
   },
+  "model": "sonnet",
+  "statusLine": {
+    "type": "command",
+    "command": "input=$(cat); model=$(echo \"$input\" | jq -r '.model.display_name'); used=$(echo \"$input\" | jq -r '.context_window.used_percentage // empty'); if [ -z \"$used\" ]; then echo \"$model\"; else pct=$(printf '%.0f' \"$used\"); bar_width=10; fill=$((pct * bar_width / 100)); filled=$(printf '%*s' \"$fill\" '' | tr ' ' '█'); empty=$(printf '%*s' $((bar_width - fill)) '' | tr ' ' '░'); printf \"%s [%s%s] %d%%\\n\" \"$model\" \"$filled\" \"$empty\" \"$pct\"; fi"
+  },
   "enabledPlugins": {
     "understand-anything@understand-anything": true
   },
@@ -14,6 +19,7 @@
       }
     }
   },
+  "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
-  "model": "opus"
+  "effortLevel": "high"
 }

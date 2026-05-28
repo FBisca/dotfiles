@@ -22,3 +22,4 @@ zsh/.zsh/secrets/
 
 .idea/
 .DS_Store
+agents/.codex/rules/default.rules

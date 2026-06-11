@@ -17,6 +17,10 @@
     "stitch": {
       "type": "http",
       "url": "https://stitch.googleapis.com/mcp"
+    },
+    "langsmith": {
+      "type": "http",
+      "url": "https://eu.api.smith.langchain.com/mcp"
     }
   }
 }

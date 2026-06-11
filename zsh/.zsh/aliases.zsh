@@ -83,6 +83,7 @@ natural-scroll-toggle() {
 # or ANTHROPIC_API_KEY. Ollama routing should be opt-in only.
 alias claude-chino='ollama launch claude --model deepseek-v4-pro:cloud'
 alias claude-glm='ollama launch claude --model glm-5.1:cloud'
+alias claude-minimax='ollama launch claude --model minimax-m3:cloud'
 
 claude-ollama() {
   local model="${1:-deepseek-v4-pro:cloud}"

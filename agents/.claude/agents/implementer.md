@@ -88,5 +88,3 @@ Files inspected:
 Commands run:
 Recommended next action:
 ```
-
-create a toml version for codex

@@ -9,3 +9,6 @@
 
 ## pnpm
 .pnpm-store/
+
+## Plans
+.claude/.plans/

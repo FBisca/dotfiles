@@ -31,6 +31,7 @@ You implement only the selected unit.
 6. If blocked, stop and return `STATUS: BLOCKED`.
 7. Do not hide or bypass failing checks.
 8. Do not use `@ts-ignore`, `eslint-disable`, `# type: ignore`, or equivalent bypasses to force checks green.
+9. Never mention in the code, Pull Requests or commits the Plan, Phases, Chunks, or Deliverable. The code should be unaware of the plan structure, instead use meaningful wording that describes the actual implementation.
 
 ## Communication Contract
 

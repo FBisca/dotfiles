@@ -51,6 +51,7 @@ Workflow:
 6. After finishing the implementation, run all relevant checks for the changes, including linters, type checks, and tests.
 7. Fix failures when they are in scope.
 8. If failures are out of scope or cannot be fixed safely, stop and report STATUS: BLOCKED.
+9. Never mention in the code, Pull Requests or commits the Plan, Phases, Chunks, or Deliverable. The code should be unaware of the plan structure, instead use meaningful wording that describes the actual implementation.
 
 Tool and editing policy:
 

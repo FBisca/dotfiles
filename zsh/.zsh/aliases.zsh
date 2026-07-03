@@ -85,6 +85,25 @@ alias claude-chino='ollama launch claude --model deepseek-v4-pro:cloud'
 alias claude-glm='ollama launch claude --model glm-5.1:cloud'
 alias claude-minimax='ollama launch claude --model minimax-m3:cloud'
 
+claude-minimax-api() {
+  env \
+    -u ANTHROPIC_API_KEY \
+    -u ANTHROPIC_AUTH_TOKEN \
+    -u ANTHROPIC_BASE_URL \
+    ANTHROPIC_BASE_URL="https://api.minimax.io/anthropic" \
+    ANTHROPIC_AUTH_TOKEN="$MINIMAX_API_KEY" \
+    API_TIMEOUT_MS="3000000" \
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1" \
+    ANTHROPIC_MODEL="MiniMax-M3" \
+    ANTHROPIC_DEFAULT_SONNET_MODEL="MiniMax-M3" \
+    ANTHROPIC_DEFAULT_OPUS_MODEL="MiniMax-M3" \
+    ANTHROPIC_DEFAULT_HAIKU_MODEL="MiniMax-M3" \
+    CLAUDE_CODE_AUTO_COMPACT_WINDOW="512000" \
+    claude "$@"
+}
+
+alias ccm='claude-minimax-api'
+
 claude-ollama() {
   local model="${1:-deepseek-v4-pro:cloud}"
 
@@ -105,4 +124,3 @@ claude-ollama-p() {
   ollama launch claude --model "$model" -- "$@"
 }
 # --- End Claude Code / Ollama profiles ---
-

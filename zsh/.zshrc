@@ -62,4 +62,9 @@ export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
 
 # opencode
 export PATH="$HOME/.opencode/bin:$PATH"
+export ENABLE_LSP_TOOL=1
 
+# Android SDK (adb, platform-tools) — Flutter finds the SDK on its own, but the
+# CLI tools are not on PATH without this.
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"

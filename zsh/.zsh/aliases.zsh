@@ -81,9 +81,7 @@ natural-scroll-toggle() {
 #
 # Do not globally export ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN,
 # or ANTHROPIC_API_KEY. Ollama routing should be opt-in only.
-alias claude-chino='ollama launch claude --model deepseek-v4-pro:cloud'
-alias claude-glm='ollama launch claude --model glm-5.1:cloud'
-alias claude-minimax='ollama launch claude --model minimax-m3:cloud'
+alias claude-minimax='CLAUDE_CODE_MAX_CONTEXT_TOKENS="512000" ollama launch claude --model minimax-m3:cloud'
 
 claude-minimax-api() {
   env \
@@ -99,7 +97,36 @@ claude-minimax-api() {
     ANTHROPIC_DEFAULT_OPUS_MODEL="MiniMax-M3" \
     ANTHROPIC_DEFAULT_HAIKU_MODEL="MiniMax-M3" \
     CLAUDE_CODE_AUTO_COMPACT_WINDOW="512000" \
+    CLAUDE_CODE_MAX_CONTEXT_TOKENS="512000" \
     claude "$@"
+}
+
+claude-glm() {
+  env \
+    CLAUDE_CODE_MAX_CONTEXT_TOKENS="812000" \
+    CLAUDE_CODE_AUTO_COMPACT_WINDOW="812000" \
+    ollama launch claude --model glm-5.3:cloud
+}
+
+claude-glm-flash() {
+  env \
+    CLAUDE_CODE_MAX_CONTEXT_TOKENS="812000" \
+    CLAUDE_CODE_AUTO_COMPACT_WINDOW="812000" \
+    ollama launch claude --model glm-5.3-flash:cloud
+}
+
+claude-chino() {
+  env \
+    CLAUDE_CODE_MAX_CONTEXT_TOKENS="512000" \
+    CLAUDE_CODE_AUTO_COMPACT_WINDOW="512000" \
+    ollama launch claude --model deepseek-v4-flash:0731-cloud
+}
+
+claude-k3() {
+  env \
+    CLAUDE_CODE_MAX_CONTEXT_TOKENS="964000" \
+    CLAUDE_CODE_AUTO_COMPACT_WINDOW="964000" \
+    ollama launch claude --model kimi-k3:cloud
 }
 
 alias ccm='claude-minimax-api'

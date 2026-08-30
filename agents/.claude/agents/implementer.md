@@ -4,7 +4,7 @@ description: Implements exactly one already-scoped implementation plan unit in t
 tools: [Read, Write, Edit, MultiEdit, Bash, Glob, Grep, LS, Skill]
 model: sonnet
 permissionMode: default
-maxTurns: 120
+maxTurns: 200
 color: cyan
 ---
 

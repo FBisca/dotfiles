@@ -23,3 +23,5 @@ zsh/.zsh/secrets/
 .idea/
 .DS_Store
 agents/.codex/rules/default.rules
+# [skills] claude.ai-synced skills (Anthropic license forbids redistribution)
+agents/.agents/skills/synced/

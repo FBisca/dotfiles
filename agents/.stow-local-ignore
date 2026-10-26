@@ -1,0 +1,5 @@
+# Stow reads this file from the package folder (not the repo root). Paths are relative to agents/.
+\.DS_Store
+^/\.codex/auth\.json
+^/\.codex/config\.local\.toml
+^/\.claude/chrome/chrome-native-host

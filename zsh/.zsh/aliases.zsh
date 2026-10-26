@@ -19,7 +19,7 @@ h-db-sync() {
   
   h-server && \
     echo "🔄 Syncing database from production server..." && \
-    ssh -A ${ICONIC_SSH_USER}@${ICONIC_SSH_HOST} "docker exec db mysqldump -u ${ICONIC_DB_USER} -p${ICONIC_DB_PASSWORD} ${ICONIC_DB_NAME}" > db_dump.sql && \
+    ssh -A ${ICONIC_SSH_USER}@${ICONIC_SSH_HOST} "docker exec db mysqldump --single-transaction -u ${ICONIC_DB_USER} -p${ICONIC_DB_PASSWORD} ${ICONIC_DB_NAME}" > db_dump.sql && \
     echo "🔄 Database dumped successfully" && \
     pnpm docker:db:init && \
     echo "✅ Database synced successfully"
@@ -72,6 +72,15 @@ natural-scroll-toggle() {
     natural-scroll-off
   else
     natural-scroll-on
+  fi
+}
+
+claude() {
+  if [[ -n "$HERDR_PANE_ID" ]] && command -v herdmates >/dev/null 2>&1; then
+    export HERDMATES_TEAMMATE_LAYOUT=tab
+    herdmates teammux-launch "$@"
+  else
+    command claude "$@"
   fi
 }
 

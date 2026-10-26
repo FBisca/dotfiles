@@ -11,8 +11,6 @@ agents/.claude/chrome/chrome-native-host
 agents/.codex/auth.json
 agents/.codex/config.local.toml
 
-# [copilot]
-agents/.copilot/config.local.json
 
 # [nvim]
 nvim/.config/nvim/lazy-lock.json
@@ -23,5 +21,5 @@ zsh/.zsh/secrets/
 .idea/
 .DS_Store
 agents/.codex/rules/default.rules
-# [skills] claude.ai-synced skills (Anthropic license forbids redistribution)
+# [skills] claude.ai account skills, re-synced by Claude Code into ~/.claude/skills/synced (Anthropic license forbids redistribution)
 agents/.agents/skills/synced/

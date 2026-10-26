@@ -54,6 +54,15 @@ natural-scroll-toggle() {
   fi
 }
 
+claude() {
+  if [[ -n "$HERDR_PANE_ID" ]] && command -v herdmates >/dev/null 2>&1; then
+    export HERDMATES_TEAMMATE_LAYOUT=tab
+    herdmates teammux-launch "$@"
+  else
+    command claude "$@"
+  fi
+}
+
 # --- Claude Code / Ollama profiles ---
 # Vanilla Anthropic Claude Code remains:
 #   claude

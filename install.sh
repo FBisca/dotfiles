@@ -50,6 +50,10 @@ fi
 
 print_status "Installing dotfiles with GNU Stow..."
 
+# Real folders for agent homes: stow then links only the tracked entries inside them
+# (skills, settings), so sessions, credentials and history never land in this repo.
+mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents"
+
 # List of modules to install
 MODULES=(
     "git"

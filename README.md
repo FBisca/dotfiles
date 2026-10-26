@@ -35,7 +35,7 @@ cd ~/.dotfiles
 - You have [`gh`](https://cli.github.com/) installed and authenticated via `gh auth login`.
 - Your system supports symlinks (tested on macOS ARM with GNU Stow).
 
-If `~/.claude`, `~/.codex`, `~/.agents`, or `~/.copilot` already exist on a machine, move the tracked files into this repo first or run `stow --adopt agents` once before using the full installer.
+`install.sh` creates `~/.claude`, `~/.codex` and `~/.agents` as real folders before stowing, so tool state (sessions, credentials, history) stays out of this repo and only the tracked entries are linked. If those folders already hold tracked files on a machine, move them into this repo first or run `stow --adopt agents` once.
 
 ## 📦 Tools
 
@@ -106,8 +106,8 @@ Shared agent configuration is also tracked for local CLI tools:
 
 - `agents/.claude` stores shared Claude Code settings plus custom agents and commands.
 - `agents/.codex` stores shared Codex defaults and command rules. Sensitive MCP credentials stay in local overrides.
-- `agents/.agents` stores reusable custom skills.
-- `agents/.copilot` stores shared GitHub Copilot skill bundles and sanitized local preferences.
+- `agents/.agents` stores every skill: `~/.agents/skills` (Codex) and `~/.claude/skills` (Claude Code) are both one link to `agents/.agents/skills`, so no agent keeps its own copy. Skills installed with `npx skills add -g` land here too and show up as git changes.
+- `agents/.stow-local-ignore` lists what Stow skips in this package (Stow reads ignore files per package, not from the repo root).
 
 Install everything with `stow agents` or let `./install.sh` treat it like any other module.
 
@@ -132,8 +132,7 @@ Each tool has its own folder. Use `stow <tool>` to activate.
 └── agents/
   ├── .agents/
   ├── .claude/
-  ├── .codex/
-  └── .copilot/
+  └── .codex/
 ```
 
 ---

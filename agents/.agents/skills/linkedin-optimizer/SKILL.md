@@ -1,4 +1,5 @@
 ---
+disable-model-invocation: true
 name: linkedin-optimizer
 description: Audits and rewrites a person's LinkedIn profile for recruiter and AI-sourcing search (headline, About, experience, projects, skills, Open to Work, custom URL), scores it out of 100 before and after, applies changes as paste-ready text or live via Claude-in-Chrome, and can render a matching ATS-safe CV (PDF/.docx). Use when the user asks to improve, optimize, rewrite or review their LinkedIn profile, headline or About section, wants more recruiter outreach, or wants a CV that matches their LinkedIn.
 ---

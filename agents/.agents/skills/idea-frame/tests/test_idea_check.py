@@ -73,7 +73,7 @@ class IdeaCheckTests(unittest.TestCase):
         (self.dir / name).write_text(text)
 
     def idea(self, stage="prd", entry="raw", hours=HOURS):
-        self.write("idea.md", IDEA.format(stage=stage, entry=entry, hours=hours))
+        self.write("Robo-Doc.md", IDEA.format(stage=stage, entry=entry, hours=hours))
 
     def run_check(self, *args):
         out, err = io.StringIO(), io.StringIO()
@@ -81,11 +81,23 @@ class IdeaCheckTests(unittest.TestCase):
             code = self.app.main([str(self.dir), *args])
         return code, out.getvalue(), err.getvalue()
 
-    def test_S1_missing_idea_md_is_refused(self):
-        (self.dir / "idea.md").unlink()
+    def test_S1_missing_index_note_is_refused(self):
+        (self.dir / "Robo-Doc.md").unlink()
         code, out, err = self.run_check()
         self.assertEqual(code, 2)
         self.assertIn("REFUSED", out + err)
+
+    def test_S1_two_index_notes_are_refused(self):
+        self.write("Other.md", IDEA.format(stage="prd", entry="raw", hours=HOURS))
+        code, out, err = self.run_check()
+        self.assertEqual(code, 2)
+        self.assertIn("REFUSED", out + err)
+
+    def test_S1_notes_without_type_project_do_not_count(self):
+        self.write("Notes.md", "---\ntype: note\n---\nhi\n")
+        self.assertEqual(self.run_check()[0], 0)
+        (self.dir / "Robo-Doc.md").unlink()
+        self.assertEqual(self.run_check()[0], 2)
 
     def test_S2_bad_stage_fails(self):
         self.idea(stage="done")
@@ -207,7 +219,7 @@ class IdeaCheckTests(unittest.TestCase):
         self.assertIn("PASS unknown-to-assumption", out)
 
     def test_S2_quoted_frontmatter_value_is_accepted(self):
-        self.write("idea.md", (self.dir / "idea.md").read_text().replace("stage: prd", 'stage: "prd"'))
+        self.write("Robo-Doc.md", (self.dir / "Robo-Doc.md").read_text().replace("stage: prd", 'stage: "prd"'))
         self.assertIn("PASS stage-value", self.run_check()[1])
 
     def test_S7_trailing_punctuation_after_assumption_link(self):

@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 **Input:** one sentence describing the idea.
 **Output:** the idea folder `~/developer/vault/01-projects/<slug>/` with the index note `<Title>.md`, `frame.md`, `assumptions.md`, `premortem.md`, `gates.md`, and an `idea-check --gate 1` result shown to Felippe.
-**Hand-off:** on continue, `/to-spec` with the idea folder loaded, then optionally `/idea-answer <folder>` for the 3–5 items Felippe picks.
+**Hand-off:** on continue, `/to-spec` with the idea folder loaded, then optionally `/idea-answer <folder>` for the 3–5 items Felippe picks; after `/to-spec` writes `PRD.md`, set `stage: prd`.
 
 The folder contract (file formats, allowed values, check rules) is the docstring of `~/.claude/skills/idea-frame/scripts/idea_check.py`. Read it before writing any file; the gate fails on anything it does not allow. Vault rules apply: no client or investor names, no message bodies, no secrets.
 

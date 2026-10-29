@@ -62,6 +62,7 @@ class IdeaFrameContract(unittest.TestCase):
         skill = read("SKILL.md")
         last = skill.rstrip().splitlines()[-1]
         self.assertIn("**Hand-off:** on continue, `/to-spec` with the idea folder loaded", skill)
+        self.assertIn("after `/to-spec` writes `PRD.md`, set `stage: prd`", skill)
         self.assertIn("read `frame.md` and `assumptions.md` into the conversation", skill)
         self.assertIn("Further Notes must list every open assumption (`A<n>`, risk, owner type) as an open question", skill)
         self.assertIn("`/to-spec` with the idea folder loaded (Further Notes list each open assumption with its owner)", last)

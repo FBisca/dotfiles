@@ -19,21 +19,24 @@ class GoldfishContract(unittest.TestCase):
         self.assertRegex(read("agents/openai.yaml"), r"(?m)^\s+allow_implicit_invocation: false$")
 
     def test_S18_reader_contract(self):
-        t = skill_text().lower()
-        self.assertIn("only", t)
-        self.assertRegex(t, r"only (the|that) (given |one )?(file|document)|opens only")
-        self.assertIn("what this says", t)
-        self.assertIn("undefined term", t)
-        self.assertRegex(t, r"two ways|ambigu")
-        self.assertIn("cannot paraphrase", t)
-        self.assertIn("blocker", t)
-        self.assertRegex(t, r"subagent")
-        self.assertRegex(t, r"never edit|does not edit|not edit")
+        reader = read("reader.md")
+        for p in ("Open only the one file", "CANNOT PARAPHRASE", "**Blocker**",
+                  "Quote the statement", "Undefined terms", "What this says"):
+            self.assertIn(p, reader)
+        skill = read("SKILL.md")
+        self.assertIn("fresh subagent", skill)
+        self.assertIn("never edits the doc", skill)
+        self.assertIn("Blocker", skill)
 
     def test_S19_apache_attribution(self):
         t = read("NOTICE.md")
         for s in ("Apache-2.0", "elephant-goldfish-model", "agents/comprehension.md", "modified"):
             self.assertIn(s, t)
+        first = read("reader.md").splitlines()[0]
+        for x in ("Apache-2.0", "agents/comprehension.md", "modified", "NOTICE.md"):
+            self.assertIn(x, first)
+        self.assertIn("2026-10-29", t)
+        self.assertNotIn("Felippe Bisca's setup", t)
         self.assertTrue((ROOT / "LICENSE").exists())
         self.assertIn("Apache License", read("LICENSE"))
 

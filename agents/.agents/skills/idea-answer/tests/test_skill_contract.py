@@ -81,6 +81,15 @@ class IdeaAnswerContract(unittest.TestCase):
         hits = [p.name for p in ROOT.rglob("*.md") if "felippe" in p.read_text().lower()]
         self.assertEqual(hits, [])
 
+    def test_S34_ethical_owner_guidance(self):
+        self.assertIn("ethical: could it harm someone", read("SKILL.md"))
+        self.assertIn("compliance, or the decider when it is a product call", read("SKILL.md"))
+
+    def test_S36_tests_use_type_criterion_and_prep_uses_criterion(self):
+        t = skill_text()
+        self.assertIn("test as `<type>: <success criterion>` (interview, prototype, data, survey, spike)", t)
+        self.assertIn("the row's criterion is the answer that kills or changes the idea", t)
+
 
 if __name__ == "__main__":
     unittest.main()

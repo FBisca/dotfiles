@@ -72,6 +72,30 @@ class IdeaFrameContract(unittest.TestCase):
         hits = [p.name for p in ROOT.rglob("*.md") if "felippe" in p.read_text().lower()]
         self.assertEqual(hits, [])
 
+    def test_S33_story_map_pass_in_seeds_and_skill(self):
+        skill, seeds = read("SKILL.md"), read("seeds.md")
+        for p in ("## Story map", "actors", "user, system, our team", "what must be true here?", "not a lookup"):
+            self.assertIn(p, seeds)
+        self.assertIn("assumption row", seeds)
+        self.assertIn("story-map pass", skill)
+
+    def test_S34_seeds_has_ethical_branch_and_owner_guidance(self):
+        seeds, skill = read("seeds.md"), read("SKILL.md")
+        self.assertIn("**ethical**", seeds)
+        self.assertIn("ethical: could it harm someone", skill)
+        self.assertIn("compliance, or the decider when it is a product call", skill)
+
+    def test_S35_levels_defined_and_map_reordered_before_gate_1(self):
+        skill = read("SKILL.md")
+        for p in ("importance high: the idea dies if false; med: it changes the design; low: a detail",
+                  "evidence high: a lookup or data; med: one first-hand report; low: an opinion, including the user's own",
+                  "leap-of-faith first (high importance, low evidence)",
+                  "the user reorders",
+                  "row order in `assumptions.md`",
+                  "from belief (not a lookup) gets evidence low",
+                  "`<type>: <success criterion>`", "interview, prototype, data, survey, spike"):
+            self.assertIn(p, skill)
+
 
 if __name__ == "__main__":
     unittest.main()

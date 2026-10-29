@@ -129,10 +129,11 @@ Each tool has its own folder. Use `stow <tool>` to activate.
 ├── fzf/
 ├── env/
 ├── slack/
-└── agents/
-  ├── .agents/
-  ├── .claude/
-  └── .codex/
+├── agents/
+│ ├── .agents/
+│ ├── .claude/
+│ └── .codex/
+└── bin/        # scripts on PATH via ~/bin (e.g. wait-checks)
 ```
 
 ---

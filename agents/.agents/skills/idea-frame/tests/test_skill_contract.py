@@ -29,9 +29,21 @@ class IdeaFrameContract(unittest.TestCase):
                   "~/.claude/skills/idea-frame/scripts/idea_check.py",
                   "idea_check.py <folder> --gate 1"):
             self.assertIn(p, skill)
-        self.assertTrue(skill.rstrip().splitlines()[-1].startswith("Done when"))
+        last = skill.rstrip().splitlines()[-1]
+        self.assertTrue(last.startswith("Done when"))
+        self.assertIn("`/idea-answer <folder>`", last)
         self.assertIn("**Hand-off:** `/idea-answer <folder>`", skill)
         self.assertLessEqual(len(skill.splitlines()), 120)
+
+    def test_S16_uses_vault_template_and_notes(self):
+        skill = read("SKILL.md")
+        for p in ("~/developer/vault/90-templates/project.md", "`## Now`", "`## Notes`",
+                  "[[frame]] [[assumptions]] [[premortem]] [[gates]]",
+                  "`type: note`", 'project: "[[<Title>]]"',
+                  "`Q<n>` keeps counting across rounds",
+                  "append to `gates.md`, never overwrite",
+                  "`stage: gate1`"):
+            self.assertIn(p, skill)
 
 
 if __name__ == "__main__":

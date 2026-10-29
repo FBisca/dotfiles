@@ -249,6 +249,29 @@ class IdeaCheckTests(unittest.TestCase):
         self.write("assumptions.md", table([(*ROWS[0][:7], ""), *ROWS[1:]]))
         self.assertIn("FAIL answers-sourced", self.run_check("--gate", "2")[1])
 
+    def test_S7_side_file_frontmatter_is_ignored(self):
+        fm = "---\ntype: note\ntags:\n  - x\n---\n"
+        for name in ("premortem.md", "gates.md", "frame.md", "answers.md"):
+            self.write(name, fm + (self.dir / name).read_text())
+        code, out, _ = self.run_check("--gate", "2")
+        self.assertEqual(code, 0, out)
+
+    def test_S1_side_file_with_type_project_is_not_a_candidate(self):
+        self.write("frame.md", "---\ntype: project\n---\n" + FRAME)
+        self.assertEqual(self.run_check()[0], 0)
+
+    def test_S1_subfolder_note_with_type_project_is_ignored(self):
+        (self.dir / "sub").mkdir()
+        (self.dir / "sub" / "Other.md").write_text("---\ntype: project\n---\n")
+        self.assertEqual(self.run_check()[0], 0)
+
+    def test_S1_bom_directory_and_binary_md_are_tolerated(self):
+        path = self.dir / "Robo-Doc.md"
+        path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
+        (self.dir / "folder.md").mkdir()
+        (self.dir / "bin.md").write_bytes(b"\xff\xfe\x00bad")
+        self.assertEqual(self.run_check()[0], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

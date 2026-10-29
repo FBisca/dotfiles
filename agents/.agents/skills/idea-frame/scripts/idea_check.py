@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic idea-folder gate (converge-style): structural checks, plus gate 1 / gate 2 checks.
+r"""Deterministic idea-folder gate (converge-style): structural checks, plus gate 1 / gate 2 checks.
 
 Usage: idea_check.py <folder> [--gate 1|2]
 Output: one `PASS|FAIL|SKIPPED <check>: detail` line per check. Exit 0 if nothing FAILs, 1 on any FAIL,
@@ -16,7 +16,8 @@ SKIPPED; the other checks run.
 
 Contract decisions (files as in the plan's idea-folder table):
 - The index note is the ONE root-level `.md` whose frontmatter has `type: project`, titled like the idea
-  (`Robo-Doc.md`); frame, assumptions, premortem, answers and gates `.md` are never candidates. Zero or
+  (`Robo-Doc.md`); frame, assumptions, premortem, answers and gates `.md` are never candidates, and their own frontmatter is ignored by every check. A BOM is
+  tolerated; directories named `*.md`, non-UTF-8 files and subfolders are not candidates. Zero or
   several candidates is REFUSED. Its frontmatter is flat `key: value` lines between `---` fences; surrounding quotes on a value are
   stripped (`stage: "gate1"`). `stage` must be one of
   framing, gate1, answering, gate2, prd, killed, reshaped. `entry` defaults to raw.
@@ -66,9 +67,18 @@ GATE_LINE = re.compile(
 NEVER = 9  # `need` level for structural checks: an absent file is SKIPPED at every gate
 
 
+def load(path):
+    """Text of a file (BOM dropped), or None if it is not a readable UTF-8 file."""
+    try:
+        return path.read_text(encoding="utf-8-sig") if path.is_file() else None
+    except (UnicodeDecodeError, OSError):
+        return None
+
+
 def read(folder, name):
-    p = Path(folder) / name
-    return p.read_text() if p.is_file() else None
+    """A side file's body: its own frontmatter is never read by any check."""
+    text = load(Path(folder) / name)
+    return text if text is None else re.sub(r"\A---\s*\n.*?\n---[ \t]*\n?", "", text, count=1, flags=re.S)
 
 
 def frontmatter(text):
@@ -233,11 +243,12 @@ def find_index(folder):
     """(text, None) of the one root-level .md with `type: project`, else (None, why)."""
     found = []
     for p in sorted(Path(folder).glob("*.md")):
-        if p.name not in SIDE_FILES and frontmatter(p.read_text()).get("type") == "project":
-            found.append(p)
+        text = None if p.name in SIDE_FILES else load(p)
+        if text is not None and frontmatter(text).get("type") == "project":
+            found.append(text)
     if len(found) != 1:
         return None, (f"{len(found)} index notes" if found else "no index note")
-    return found[0].read_text(), None
+    return found[0], None
 
 
 def run(folder, gate):

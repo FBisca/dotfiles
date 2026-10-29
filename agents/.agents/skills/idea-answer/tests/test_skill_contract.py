@@ -38,7 +38,7 @@ class IdeaAnswerContract(unittest.TestCase):
             "under `## Hours` in the index note",
             "`Owner: <type> (<role>)` (the type first, so the cap counts it), `Date: YYYY-MM-DD`, `Link: <link>`, `Summary:`",
             "`accepted by <decider role>: engineering, to /start-planning Gather`",
-            "`Summary: open → PRD Open Questions`",
+            "`Summary: open → PRD Further Notes`",
             "the index note (`<Title>.md`, the one root-level note with `type: project`)",
             "`type: project`, `status: idea`, `stage: answering`, `entry: decided`, `decider: <role>`",
             "idea-check only needs a non-empty result",
@@ -70,10 +70,11 @@ class IdeaAnswerContract(unittest.TestCase):
         text = read("SKILL.md")
         for p in ("Show the open items ranked by importance and ask Felippe which 3–5 to take to people",
                   "Route and prepare only those",
-                  "The rest stay in `assumptions.md` untouched",
+                  "The rest stay in `assumptions.md` untouched until gate 2",
+                  "after `/to-spec` writes `PRD.md`, set `stage: prd`",
                   "`accepted by <decider role>: low priority, not asked`",
                   "except items not picked",
-                  "`people-cap`"):
+                  "`people-cap` above 12"):
             self.assertIn(p, text)
 
 

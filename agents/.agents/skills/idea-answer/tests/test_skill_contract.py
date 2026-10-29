@@ -16,7 +16,6 @@ def skill_text():
 
 class IdeaAnswerContract(unittest.TestCase):
     def test_S15b_manual_only_invocation(self):
-        import re
         self.assertRegex(read("SKILL.md"), r"(?m)^disable-model-invocation: true$")
         self.assertRegex(read("agents/openai.yaml"), r"(?m)^\s+allow_implicit_invocation: false$")
 
@@ -28,11 +27,14 @@ class IdeaAnswerContract(unittest.TestCase):
             "only after Felippe's yes",
             "never sends",
             "Felippe's summary",
-            "Owner (role), Date, Link",
             "no message bodies, no client or investor names",
             "`Source: unknown`",
             "`entry: decided`",
             "/prototype",
+            "under `## Hours` in the index note",
+            "`Owner: <role>`, `Date: YYYY-MM-DD`, `Link: <link>`, `Summary:`",
+            "`accepted by <decider role>: engineering, to /start-planning Gather`",
+            "`Summary: open → PRD Open Questions`",
             "the index note (`<Title>.md`, the one root-level note with `type: project`)",
             "`type: project`, `status: idea`, `stage: answering`, `entry: decided`, `decider: <role>`",
             "idea-check only needs a non-empty result",

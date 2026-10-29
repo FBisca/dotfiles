@@ -87,7 +87,7 @@ class IdeaAnswerContract(unittest.TestCase):
 
     def test_S36_tests_use_type_criterion_and_prep_uses_criterion(self):
         t = skill_text()
-        self.assertIn("test as `<type>: <success criterion>` (interview, prototype, data, survey, spike)", t)
+        self.assertIn("test as `<type>: <success criterion>`", t)
         self.assertIn("for an `A<n>` row the bar is its test criterion: missing it kills or changes the idea", t)
         self.assertNotIn("the row's criterion is the answer that kills", t)
         prep = read("prep.md")

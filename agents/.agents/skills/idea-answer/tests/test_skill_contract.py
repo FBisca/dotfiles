@@ -96,7 +96,7 @@ class IdeaAnswerContract(unittest.TestCase):
         self.assertIn("data or spike: no conversation", prep)
         self.assertIn("level definitions in the `idea_check.py` docstring", read("SKILL.md"))
 
-    def test_S36_ranking_follows_row_order(self):
+    def test_S35_ranking_follows_row_order(self):
         t = read("SKILL.md")
         self.assertIn("Rank in `assumptions.md` row order (agreed at gate 1); unknown frame questions by importance", t)
 

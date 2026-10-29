@@ -7,11 +7,11 @@ Output: one `PASS|FAIL|SKIPPED <check>: detail` line per check. Exit 0 if nothin
 
 Checks (no --gate = structural only):
   structural: stage-value, assumption-values, premortem-links, gate-reason, hours-logged
-  --gate 1:   structural + frame-sources, unknown-to-assumption, top3-ready
-  --gate 2:   gate 1 + assumptions-closed, answers-sourced, decider-signoff
+  --gate 1:   structural + frame-sources, frame-owners, unknown-to-assumption, top3-ready
+  --gate 2:   gate 1 + assumptions-closed, answers-sourced, people-cap, decider-signoff
 A structural check whose file is absent prints SKIPPED. A gate check whose file is absent FAILs
 (gate 1 needs frame.md, assumptions.md, premortem.md; gate 2 also needs answers.md, gates.md).
-`entry: decided` + --gate 2: frame-sources, unknown-to-assumption, top3-ready, premortem-links print
+`entry: decided` + --gate 2: frame-sources, frame-owners, unknown-to-assumption, top3-ready, premortem-links print
 SKIPPED; the other checks run.
 
 Contract decisions (files as in the plan's idea-folder table):
@@ -35,6 +35,11 @@ Contract decisions (files as in the plan's idea-folder table):
   assumption-values). Matching is case-insensitive. Empty owner/test/result cells are allowed by
   assumption-values (other checks need them). Cells split on unescaped `|` only; `\|` (Obsidian
   alias `[[note\|alias]]`) stays inside the cell.
+- frame-owners (gates 1 and 2): every `Source: unknown` question section has an `Owner: <type>` line,
+  type one of the owner values above, case-insensitive (same parsing as answers.md). Questions with
+  another Source need none.
+- people-cap (gate 2): at most 12 answers.md entries (PEOPLE_CAP) may have an Owner other than
+  engineering (case-insensitive); an absent answers.md counts 0. It runs for `entry: decided` too.
 - An assumption cites frame question Q<n> when the token `Q<n>` appears in its assumption cell.
 - top3-ready: at least 3 assumptions with importance high have a non-empty owner and test.
 - assumptions-closed: each high-importance assumption has a non-empty result (`accepted by <role>`
@@ -59,6 +64,7 @@ STAGES = ["framing", "gate1", "answering", "gate2", "prd"]
 VALID_STAGES = STAGES + ["killed", "reshaped"]
 RISKS = {"value", "usability", "feasibility", "viability"}
 OWNERS = {"operator/user", "finance", "compliance", "decider", "engineering"}
+PEOPLE_CAP = 12  # max answers.md entries whose Owner is not engineering
 LEVELS = {"high", "med", "low"}
 GATE_LINE = re.compile(
     r"^\s*[-*]\s+\d{4}-\d\d-\d\d\s+gate([12]):\s*(kill|reshape|continue|pass by [^:]+?)\s*(?::\s*(.*?))?\s*$")
@@ -199,6 +205,24 @@ def check_frame_sources(text):
     return result(not bad, "frame-sources", "no Source: " + ", ".join(bad) if bad else "")
 
 
+def owner_of(body):
+    m = re.search(r"^\s*Owner:\s*(\S.*?)\s*$", body, re.M | re.I)
+    return m.group(1).lower() if m else ""
+
+
+def check_frame_owners(text):
+    bad = [h.split()[0] for h, body in sections(text)
+           if re.match(r"Q\d+\b", h)
+           and any(q == h.split()[0] and src == "unknown" for q, src in frame_questions(text))
+           and owner_of(body) not in OWNERS]
+    return result(not bad, "frame-owners", "no D10 Owner: " + ", ".join(bad) if bad else "")
+
+
+def check_people_cap(text):
+    n = sum(1 for _, body in sections(text or "") if owner_of(body) != "engineering")
+    return result(n <= PEOPLE_CAP, "people-cap", f"{n} items sent to people (max {PEOPLE_CAP})")
+
+
 def check_unknown(text, rows):
     cited = " ".join(r.get("assumption", "") for r in rows)
     bad = [q for q, s in frame_questions(text) if s == "unknown" and not re.search(rf"\b{q}\b", cited)]
@@ -265,7 +289,8 @@ def run(folder, gate):
     out = [check_stage(idea)]
 
     def need(name, file, gate_needs, fn):
-        if skip_gate1 and name in ("frame-sources", "unknown-to-assumption", "top3-ready", "premortem-links"):
+        if skip_gate1 and name in ("frame-sources", "frame-owners", "unknown-to-assumption", "top3-ready",
+                    "premortem-links"):
             return ("SKIPPED", name, "entry: decided")
         if docs[file] is None:
             return missing(name, file) if gate >= gate_needs else ("SKIPPED", name, f"{file} absent")
@@ -277,6 +302,7 @@ def run(folder, gate):
     out.append(check_hours(idea))
     if gate >= 1:
         out.append(need("frame-sources", "frame.md", 1, lambda: check_frame_sources(docs["frame.md"])))
+        out.append(need("frame-owners", "frame.md", 1, lambda: check_frame_owners(docs["frame.md"])))
         out.append(need("unknown-to-assumption", "frame.md", 1,
                         lambda: check_unknown(docs["frame.md"], rows)))
         out.append(need("top3-ready", "assumptions.md", 1, lambda: check_top3(rows)))
@@ -286,6 +312,7 @@ def run(folder, gate):
             out.append(result(True, "answers-sourced", "no answers.md; nothing was open"))
         else:
             out.append(need("answers-sourced", "answers.md", 2, lambda: check_answers(docs["answers.md"])))
+        out.append(check_people_cap(docs["answers.md"]))
         out.append(need("decider-signoff", "gates.md", 2,
                         lambda: check_signoff(docs["gates.md"], idea.get("decider", ""))))
     return out

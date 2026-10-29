@@ -63,15 +63,18 @@ class IdeaAnswerContract(unittest.TestCase):
                   "decider: scope and priority, e.g. ",
                   "product-behaviour rules (what the product does in a case): the person who owns that behaviour"):
             self.assertIn(p, text)
+        self.assertIn("`Owner: <type> (<role>)`", text)
+        self.assertLessEqual(len(text.splitlines()), 120)
+
+    def test_S31_asks_which_three_to_five_items_and_routes_only_those(self):
+        text = read("SKILL.md")
         for p in ("Show the open items ranked by importance and ask Felippe which 3–5 to take to people",
                   "Route and prepare only those",
                   "The rest stay in `assumptions.md` untouched",
                   "`accepted by <decider role>: low priority, not asked`",
                   "except items not picked",
-                  "`people-cap`",
-                  "`Owner: <type> (<role>)`"):
+                  "`people-cap`"):
             self.assertIn(p, text)
-        self.assertLessEqual(len(text.splitlines()), 120)
 
 
 if __name__ == "__main__":

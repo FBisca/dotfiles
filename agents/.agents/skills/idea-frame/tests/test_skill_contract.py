@@ -66,7 +66,11 @@ class IdeaFrameContract(unittest.TestCase):
         self.assertIn("read `frame.md` and `assumptions.md` into the conversation", skill)
         self.assertIn("Further Notes must list every open assumption (`A<n>`, risk, owner type) as an open question", skill)
         self.assertIn("`/to-spec` with the idea folder loaded (Further Notes list each open assumption with its owner)", last)
-        self.assertIn("`/idea-answer <folder>` only for the 3–5 items he picks", last)
+        self.assertIn("`/idea-answer <folder>` only for the 3–5 items they pick", last)
+
+    def test_S32_names_no_person(self):
+        hits = [p.name for p in ROOT.rglob("*.md") if "felippe" in p.read_text().lower()]
+        self.assertEqual(hits, [])
 
 
 if __name__ == "__main__":

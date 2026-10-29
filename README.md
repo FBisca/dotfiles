@@ -17,6 +17,7 @@ Special thanks to [rodrigopsasaki](https://github.com/rodrigopsasaki), the origi
   - [🐙 GitHub CLI (gh)](#-github-cli-gh)
 - [📁 Layout](#-layout)
 - [🧠 Philosophy](#-philosophy)
+- [🔁 Feature workflow](docs/workflow.md): idea → PRD → plan → build, the skill behind each step and the method it comes from
 
 ## ⚡ Getting Started
 

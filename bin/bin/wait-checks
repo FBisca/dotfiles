@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# wait-checks: wait for the checks of one or more GitHub PRs, in parallel.
+# Usage: wait-checks <pr> | <repo>#<pr> | <owner>/<repo>#<pr> ...
+# Prints one PASS/FAIL line per PR; on FAIL also the failing checks and the tail of the failed log.
+# Exit 0 when every PR passes, 1 when any fails, 2 on bad input.
+# Env: WAIT_CHECKS_INTERVAL (seconds, default 30), WAIT_CHECKS_LOG_LINES (default 40).
+set -uo pipefail
+
+INTERVAL=${WAIT_CHECKS_INTERVAL:-30}
+LOG_LINES=${WAIT_CHECKS_LOG_LINES:-40}
+
+if [[ $# -eq 0 || $1 == -h || $1 == --help ]]; then
+  sed -n '2,6p' "$0" | sed 's/^# //'
+  exit 2
+fi
+
+# "<arg>" -> "<owner>/<repo> <pr>"; a bare repo or PR takes the owner/repo of the current directory.
+resolve() {
+  local arg=$1 repo="" pr=$1
+  if [[ $arg == *#* ]]; then repo=${arg%%#*}; pr=${arg##*#}; fi
+  if [[ ! $pr =~ ^[0-9]+$ ]]; then echo "wait-checks: bad PR '$arg'" >&2; return 1; fi
+  if [[ -z $repo ]]; then
+    repo=$(gh repo view --json nameWithOwner -q .nameWithOwner) || return 1
+  elif [[ $repo != */* ]]; then
+    repo="$(gh repo view --json owner -q .owner.login)/$repo" || return 1
+  fi
+  echo "$repo $pr"
+}
+
+wait_one() {
+  local repo=$1 pr=$2 label="$1#$2" out run
+  # Checks can take a few seconds to register after a push.
+  for _ in $(seq 1 12); do
+    out=$(gh pr checks "$pr" -R "$repo" 2>&1)
+    [[ $out == *"no checks reported"* ]] || break
+    sleep 10
+  done
+  if [[ $out == *"no checks reported"* ]]; then
+    echo "NONE $label: no checks reported after 2 min"
+    return 1
+  fi
+
+  if gh pr checks "$pr" -R "$repo" --watch --fail-fast --interval "$INTERVAL" >/dev/null 2>&1; then
+    echo "PASS $label"
+    return 0
+  fi
+
+  echo "FAIL $label"
+  gh pr checks "$pr" -R "$repo" --json name,bucket,link \
+    -q '.[] | select(.bucket == "fail" or .bucket == "cancel") | "  \(.name): \(.bucket) \(.link)"'
+  run=$(gh pr checks "$pr" -R "$repo" --json bucket,link -q '[.[] | select(.bucket == "fail")][0].link // ""' |
+    sed -n 's#.*/runs/\([0-9][0-9]*\).*#\1#p')
+  if [[ -n $run ]]; then
+    gh run view "$run" -R "$repo" --log-failed 2>/dev/null | tail -n "$LOG_LINES" | sed 's/^/  /'
+  fi
+  return 1
+}
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+pids=()
+for arg in "$@"; do
+  spec=$(resolve "$arg") || exit 2
+  read -r repo pr <<<"$spec"
+  wait_one "$repo" "$pr" >"$tmp/${#pids[@]}" 2>&1 &
+  pids+=($!)
+done
+
+rc=0
+for i in "${!pids[@]}"; do
+  wait "${pids[$i]}" || rc=1
+  cat "$tmp/$i"
+done
+exit $rc

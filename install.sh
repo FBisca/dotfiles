@@ -67,6 +67,7 @@ MODULES=(
     "env"
     "slack"
     "agents"
+    "bin"
 )
 
 # Install each module

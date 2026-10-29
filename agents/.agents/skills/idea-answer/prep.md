@@ -8,7 +8,7 @@ Ask (Mom Test, 2-4):
 2. Walk me through how that went: who was involved, what did it cost? (specifics)
 3. What did you try before, and why did it stop working?
 4. <one more only if a number or a date is missing>
-Passes if: <the row's test criterion, verbatim; none for a Q<n>>
+Passes if: <the row's test criterion, verbatim> (a Q<n> has none: skip)
 Kills the idea: <criterion missed: the answer that means no>
 Changes the idea: <the answer that reshapes scope>
 Test type data or spike: no conversation (lookup, or `/start-planning` Gather); prototype: `/prototype`; survey: draft the questions. Usability? suggest `/prototype` for a session instead.

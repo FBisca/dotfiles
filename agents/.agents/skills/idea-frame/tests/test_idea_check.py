@@ -302,6 +302,23 @@ class IdeaCheckTests(unittest.TestCase):
         self.write("answers.md", answers(12, 5))
         self.assertIn("PASS people-cap", self.run_check("--gate", "2")[1])
 
+    def test_S26_owner_matches_on_first_token(self):
+        self.write("frame.md", FRAME.replace("Owner: Finance", "Owner: finance (role)"))
+        self.assertIn("PASS frame-owners", self.run_check("--gate", "1")[1])
+
+    def test_S27_owner_matches_on_first_token_and_missing_owner_counts(self):
+        e = "## Q{i}\n{o}Date: 2026-10-20\nSummary: s\nLink: https://example.com/a\n"
+        eng = "".join(e.format(i=i, o="Owner: Engineering via Gather\n") for i in range(20))
+        self.write("answers.md", eng)
+        self.assertIn("PASS people-cap", self.run_check("--gate", "2")[1])
+        self.write("answers.md", eng + "".join(e.format(i=50 + i, o="") for i in range(13)))
+        self.assertIn("FAIL people-cap", self.run_check("--gate", "2")[1])
+
+    def test_S27_absent_answers_passes_people_cap(self):
+        (self.dir / "answers.md").unlink()
+        self.write("frame.md", FRAME.replace("Source: unknown", "Source: me"))
+        self.assertIn("PASS people-cap", self.run_check("--gate", "2")[1])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -36,10 +36,11 @@ Contract decisions (files as in the plan's idea-folder table):
   assumption-values (other checks need them). Cells split on unescaped `|` only; `\|` (Obsidian
   alias `[[note\|alias]]`) stays inside the cell.
 - frame-owners (gates 1 and 2): every `Source: unknown` question section has an `Owner: <type>` line,
-  type one of the owner values above, case-insensitive (same parsing as answers.md). Questions with
+  type one of the owner values above. Owner parsing (frame and answers alike): case-insensitive, first
+  token of the value (`Owner: Finance (role)` is finance, `Owner: Engineering via Gather` is engineering). Questions with
   another Source need none.
 - people-cap (gate 2): at most 12 answers.md entries (PEOPLE_CAP) may have an Owner other than
-  engineering (case-insensitive); an absent answers.md counts 0. It runs for `entry: decided` too.
+  engineering. An entry with no Owner counts against the cap; an absent answers.md counts 0 (PASS). It runs for `entry: decided` too.
 - An assumption cites frame question Q<n> when the token `Q<n>` appears in its assumption cell.
 - top3-ready: at least 3 assumptions with importance high have a non-empty owner and test.
 - assumptions-closed: each high-importance assumption has a non-empty result (`accepted by <role>`
@@ -196,25 +197,23 @@ def frame_questions(text):
         m = re.match(r"(Q\d+)\b", head)
         if m:
             src = re.search(r"^\s*Source:\s*(me|unknown|lookup\s+\S.*?)\s*$", body, re.M | re.I)
-            out.append((m.group(1), src.group(1).split()[0].lower() if src else None))
+            out.append((m.group(1), src.group(1).split()[0].lower() if src else None, body))
     return out
 
 
 def check_frame_sources(text):
-    bad = [q for q, s in frame_questions(text) if s is None]
+    bad = [q for q, s, _ in frame_questions(text) if s is None]
     return result(not bad, "frame-sources", "no Source: " + ", ".join(bad) if bad else "")
 
 
 def owner_of(body):
-    m = re.search(r"^\s*Owner:\s*(\S.*?)\s*$", body, re.M | re.I)
-    return m.group(1).lower() if m else ""
+    """The `Owner:` value's first token, lowercased (`Owner: Finance (role)` -> finance), else ""."""
+    m = re.search(r"^\s*Owner:\s*(\S+)", body, re.M | re.I)
+    return m.group(1).lower().rstrip(",.;:)") if m else ""
 
 
 def check_frame_owners(text):
-    bad = [h.split()[0] for h, body in sections(text)
-           if re.match(r"Q\d+\b", h)
-           and any(q == h.split()[0] and src == "unknown" for q, src in frame_questions(text))
-           and owner_of(body) not in OWNERS]
+    bad = [q for q, src, body in frame_questions(text) if src == "unknown" and owner_of(body) not in OWNERS]
     return result(not bad, "frame-owners", "no D10 Owner: " + ", ".join(bad) if bad else "")
 
 
@@ -225,7 +224,7 @@ def check_people_cap(text):
 
 def check_unknown(text, rows):
     cited = " ".join(r.get("assumption", "") for r in rows)
-    bad = [q for q, s in frame_questions(text) if s == "unknown" and not re.search(rf"\b{q}\b", cited)]
+    bad = [q for q, s, _ in frame_questions(text) if s == "unknown" and not re.search(rf"\b{q}\b", cited)]
     return result(not bad, "unknown-to-assumption", "uncited: " + ", ".join(bad) if bad else "")
 
 
@@ -242,14 +241,15 @@ def check_closed(rows):
 def check_answers(text):
     bad = []
     for head, body in sections(text):
-        miss = [f for f in ("Owner", "Date", "Link") if not re.search(rf"^\s*{f}:\s*\S", body, re.M)]
+        miss = [f for f in ("Owner", "Date", "Link")
+                if not (owner_of(body) if f == "Owner" else re.search(rf"^\s*{f}:\s*\S", body, re.M))]
         if miss:
             bad.append(f"{head.split()[0] if head else '?'} lacks " + "/".join(miss))
     return result(not bad, "answers-sourced", "; ".join(bad))
 
 
 def nothing_open(frame, rows):
-    unknown = any(s == "unknown" for _, s in frame_questions(frame or ""))
+    unknown = any(s == "unknown" for _, s, _ in frame_questions(frame or ""))
     return not unknown and not [r for r in high(rows) if not r.get("result")]
 
 

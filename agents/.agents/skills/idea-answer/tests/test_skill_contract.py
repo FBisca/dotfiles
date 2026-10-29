@@ -60,12 +60,15 @@ class IdeaAnswerContract(unittest.TestCase):
                   "engineering: how the system behaves, e.g. ",
                   "never operators; goes to `/start-planning` Gather",
                   "operator/user: how people react to or use it, e.g. ",
-                  "decider: scope and priority, e.g. "):
+                  "decider: scope and priority, e.g. ",
+                  "product-behaviour rules (what the product does in a case): the person who owns that behaviour"):
             self.assertIn(p, text)
-        for p in ("Rank the open items by importance", "send at most 12 to people",
-                  "owner is not engineering", "marked low priority", "`people-cap`",
+        for p in ("Show the open items ranked by importance and ask Felippe which 3–5 to take to people",
+                  "Route and prepare only those",
+                  "The rest stay in `assumptions.md` untouched",
                   "`accepted by <decider role>: low priority, not asked`",
-                  "except items cut for low priority",
+                  "except items not picked",
+                  "`people-cap`",
                   "`Owner: <type> (<role>)`"):
             self.assertIn(p, text)
         self.assertLessEqual(len(text.splitlines()), 120)

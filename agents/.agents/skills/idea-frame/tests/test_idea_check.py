@@ -329,12 +329,12 @@ class IdeaCheckTests(unittest.TestCase):
 
     def test_S36_high_importance_test_needs_type_and_criterion(self):
         for bad in ("interview 5", "model", "interview:", "interview:  ", "poll: 5 of 10 say yes", ""):
-            rows = [(*ROWS[0][:6], bad, ROWS[0][7]), *ROWS[1:]]
+            rows = [(*ROWS[0][:6], bad, ROWS[0][7]), ROWS[1], (*ROWS[2][:6], bad, ROWS[2][7]), ROWS[3]]
             self.write("assumptions.md", table(rows))
             for gate in ("1", "2"):
                 code, out, _ = self.run_check("--gate", gate)
                 self.assertEqual(code, 1, (bad, out))
-                self.assertRegex(out, r"FAIL test-criterion.*A1")
+                self.assertRegex(out, r"FAIL test-criterion.*A1, A3")
         for good in ("Interview: 3 of 5 leads", "prototype: 4 of 5 finish unaided", "survey: 20% reply",
                      "data: p50 under 2d", "spike: call returns in 1 try"):
             rows = [(*ROWS[0][:6], good, ROWS[0][7]), *ROWS[1:]]
@@ -342,7 +342,8 @@ class IdeaCheckTests(unittest.TestCase):
             self.assertIn("PASS test-criterion", self.run_check("--gate", "1")[1])
 
     def test_S36_low_importance_free_text_and_decided_entry(self):
-        rows = [*ROWS[:3], (*ROWS[3][:6], "just try it", "")]
+        rows = [*ROWS[:3], (*ROWS[3][:6], "just try it", ""),
+                ("A5", "value", "Nice", "med", "low", "decider", "ask around", "")]
         self.write("assumptions.md", table(rows))
         self.assertIn("PASS test-criterion", self.run_check("--gate", "1")[1])
         self.idea(entry="decided")

@@ -31,6 +31,8 @@ Contract decisions (files as in the plan's idea-folder table):
 - assumptions.md: markdown table with header `id | risk | assumption | importance | evidence | owner |
   test | result` (column order free, matched by name). Ids are `A<n>`. risk: value, usability,
   feasibility, viability, ethical. owner: operator/user, finance, compliance, decider, engineering.
+  Levels: importance high: the idea dies if false; med: it changes the design; low: a detail.
+  evidence high: a lookup or data; med: one first-hand report; low: an opinion, including the user's own.
   importance and evidence: each MUST be exactly high, med or low (an empty or other value FAILs
   assumption-values). Matching is case-insensitive. Empty owner/test/result cells are allowed by
   assumption-values (other checks need them). Cells split on unescaped `|` only; `\|` (Obsidian

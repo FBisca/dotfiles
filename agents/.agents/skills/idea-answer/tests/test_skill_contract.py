@@ -33,12 +33,16 @@ class IdeaAnswerContract(unittest.TestCase):
             "`Source: unknown`",
             "`entry: decided`",
             "/prototype",
+            "the index note (`<Title>.md`, the one root-level note with `type: project`)",
+            "`type: project`, `status: idea`, `stage: answering`, `entry: decided`, `decider: <role>`",
+            "idea-check only needs a non-empty result",
             "python3 ~/.claude/skills/idea-frame/scripts/idea_check.py <folder> --gate 2",
             "gate2: pass by <role>: <reason>",
         ):
             self.assertIn(p, t)
         self.assertLess(t.rindex("`/to-spec`"), t.rindex("`/goldfish <folder>/PRD.md`"))
         self.assertRegex(read("SKILL.md"), r"(?s)Hand-off:\*\*.*`/to-spec`.*`/goldfish")
+        self.assertNotIn("idea.md", t)
         self.assertLessEqual(len(read("SKILL.md").splitlines()), 120)
 
 

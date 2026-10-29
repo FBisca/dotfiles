@@ -13,7 +13,7 @@ disable-model-invocation: true
 The folder contract (file formats, allowed values, check rules) is the docstring of `~/.claude/skills/idea-frame/scripts/idea_check.py`. Read it before writing any file; the gate fails on anything it does not allow. Vault rules apply: no client or investor names, no message bodies, no secrets.
 
 **Owner guidance** (route by what the question is about):
-- finance: business and finance rules, e.g. "what fee must this clear?"; if an ops owner holds the rule, record finance
+- finance: business and finance rules, e.g. "what fee must this clear?"; ask the ops owner of that rule; record owner finance
 - compliance: legal, security, data access, e.g. "may we store these documents outside the EU?"
 - engineering: how the system behaves, e.g. "does the API return the sync date?"; never operators; goes to `/start-planning` Gather
 - operator/user: how people react to or use it, e.g. "how do ops handle a failed transfer today?"

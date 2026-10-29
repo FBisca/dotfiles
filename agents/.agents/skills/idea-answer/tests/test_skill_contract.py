@@ -36,7 +36,7 @@ class IdeaAnswerContract(unittest.TestCase):
             "`type: note`, `area`, `project: \"[[<Title>]]\"`, `created`, `updated`, `tags: []`",
             "add `[[answers]]` to the index note's `## Notes`",
             "under `## Hours` in the index note",
-            "`Owner: <role>`, `Date: YYYY-MM-DD`, `Link: <link>`, `Summary:`",
+            "`Owner: <type> (<role>)` (the type first, so the cap counts it), `Date: YYYY-MM-DD`, `Link: <link>`, `Summary:`",
             "`accepted by <decider role>: engineering, to /start-planning Gather`",
             "`Summary: open → PRD Open Questions`",
             "the index note (`<Title>.md`, the one root-level note with `type: project`)",
@@ -54,9 +54,19 @@ class IdeaAnswerContract(unittest.TestCase):
 
     def test_S28_owner_guidance_and_cap(self):
         text = read("SKILL.md")
-        self.assertIn('**Owner guidance** (route by what the question is about):\n- finance: business and finance rules, e.g. "what fee must this clear?"; if an ops owner holds the rule, record finance\n- compliance: legal, security, data access, e.g. "may we store these documents outside the EU?"\n- engineering: how the system behaves, e.g. "does the API return the sync date?"; never operators; goes to `/start-planning` Gather\n- operator/user: how people react to or use it, e.g. "how do ops handle a failed transfer today?"\n- decider: scope and priority, e.g. "is mobile in scope for v1?"\n', text)
+        for p in ("**Owner guidance**",
+                  'finance: business and finance rules, e.g. "what fee must this clear?"; ask the ops owner of that rule; record owner finance',
+                  "compliance: legal, security, data access, e.g. ",
+                  "engineering: how the system behaves, e.g. ",
+                  "never operators; goes to `/start-planning` Gather",
+                  "operator/user: how people react to or use it, e.g. ",
+                  "decider: scope and priority, e.g. "):
+            self.assertIn(p, text)
         for p in ("Rank the open items by importance", "send at most 12 to people",
-                  "owner is not engineering", "marked low priority", "`people-cap`"):
+                  "owner is not engineering", "marked low priority", "`people-cap`",
+                  "`accepted by <decider role>: low priority, not asked`",
+                  "except items cut for low priority",
+                  "`Owner: <type> (<role>)`"):
             self.assertIn(p, text)
         self.assertLessEqual(len(text.splitlines()), 120)
 

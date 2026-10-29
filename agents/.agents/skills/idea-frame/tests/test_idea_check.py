@@ -128,7 +128,13 @@ class IdeaCheckTests(unittest.TestCase):
         self.assertIn("FAIL premortem-links", out)
 
     def test_S8_kill_without_reason_fails(self):
-        self.write("gates.md", GATES + "- 2026-10-26 gate1: kill\n- 2026-10-27 gate1: reshape:  \n")
+        self.write("gates.md", GATES + "- 2026-10-26 gate1: kill\n")
+        code, out, _ = self.run_check()
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL gate-reason", out)
+
+    def test_S8_reshape_without_reason_fails(self):
+        self.write("gates.md", GATES + "- 2026-10-27 gate1: reshape:  \n")
         code, out, _ = self.run_check()
         self.assertEqual(code, 1)
         self.assertIn("FAIL gate-reason", out)
@@ -186,6 +192,50 @@ class IdeaCheckTests(unittest.TestCase):
         names = [l.split()[1].rstrip(":") for l in lines]
         self.assertEqual(len(names), len(set(names)))
         self.assertEqual(len(names), 11)
+
+    def test_S9_escaped_pipe_does_not_shift_columns(self):
+        rows = [(ROWS[0][0], "value", r"See [[note\|alias]] (Q2)", *ROWS[0][3:7], ""), *ROWS[1:]]
+        self.write("assumptions.md", table(rows))
+        code, out, _ = self.run_check("--gate", "2")
+        self.assertEqual(code, 1)
+        self.assertRegex(out, r"FAIL assumptions-closed.*A1")
+
+    def test_S3_wikilink_with_spaces_and_any_case_are_valid_sources(self):
+        self.write("frame.md", "## Q1 a\nSource: lookup [[Idea to PRD - PRD]]\n## Q2 b\nSource: Unknown\n")
+        code, out, _ = self.run_check("--gate", "1")
+        self.assertIn("PASS frame-sources", out)
+        self.assertIn("PASS unknown-to-assumption", out)
+
+    def test_S2_quoted_frontmatter_value_is_accepted(self):
+        self.write("idea.md", (self.dir / "idea.md").read_text().replace("stage: prd", 'stage: "prd"'))
+        self.assertIn("PASS stage-value", self.run_check()[1])
+
+    def test_S7_trailing_punctuation_after_assumption_link(self):
+        self.write("premortem.md", "- Cost blows up → A3.\n")
+        self.assertIn("PASS premortem-links", self.run_check()[1])
+
+    def test_S7_link_to_unknown_assumption_fails(self):
+        self.write("premortem.md", "- Cost blows up → A9\n")
+        code, out, _ = self.run_check()
+        self.assertEqual(code, 1)
+        self.assertRegex(out, r"FAIL premortem-links.*A9")
+
+    def test_S10_missing_answers_passes_when_nothing_is_open(self):
+        (self.dir / "answers.md").unlink()
+        self.write("frame.md", FRAME.replace("Source: unknown", "Source: me"))
+        self.assertIn("PASS answers-sourced", self.run_check("--gate", "2")[1])
+
+    def test_S10_missing_answers_fails_with_unknown_question(self):
+        (self.dir / "answers.md").unlink()
+        code, out, _ = self.run_check("--gate", "2")
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL answers-sourced", out)
+
+    def test_S10_missing_answers_fails_with_open_high_assumption(self):
+        (self.dir / "answers.md").unlink()
+        self.write("frame.md", FRAME.replace("Source: unknown", "Source: me"))
+        self.write("assumptions.md", table([(*ROWS[0][:7], ""), *ROWS[1:]]))
+        self.assertIn("FAIL answers-sourced", self.run_check("--gate", "2")[1])
 
 
 if __name__ == "__main__":

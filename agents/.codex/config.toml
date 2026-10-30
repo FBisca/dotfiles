@@ -75,3 +75,20 @@ enabled = true
 
 [notice.model_migrations]
 "gpt-5.4" = "gpt-5.5"
+
+[[hooks.SessionStart]]
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = '"$HOME/.agents/skills/agent-runtime/hooks/session_start.py" --cli codex'
+timeout = 5
+statusMessage = "Resolving agent runtime"
+
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = '"$HOME/.agents/skills/agent-runtime/hooks/pre_tool_use.py" --cli codex'
+timeout = 5
+statusMessage = "Checking hc command"

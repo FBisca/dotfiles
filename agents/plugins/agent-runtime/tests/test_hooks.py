@@ -54,12 +54,35 @@ class SubagentToolTests(unittest.TestCase):
 class RawHcTests(unittest.TestCase):
     def test_S17_mutating_hc_is_denied_for_every_caller(self):
         """agent-runtime-tools/S17"""
-        for sub in ("run --bg x", "send w hi", "keys w enter", "kill w", "interrupt w", "rm w",
-                    "file write f", "file edit f"):
+        for sub in ("run --bg x", "send w hi", "kill w", "rm w", "file write f", "file edit f"):
             for extra in ({}, {"agent_id": "sub-1"}):
                 out = run(PRE, bash("hc " + sub, **extra))
                 self.assertTrue(denied(out), (sub, extra))
                 self.assertIn(DENY_TEXT, out["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_S17_keys_and_interrupt_ask_the_main_agent_and_deny_subagents(self):
+        """agent-runtime-tools/S17"""
+        for sub in ("keys w enter", "interrupt w"):
+            out = run(PRE, bash("hc " + sub))["hookSpecificOutput"]
+            self.assertEqual(out["permissionDecision"], "ask", sub)
+            self.assertIn("approve to press keys in a worker", out["permissionDecisionReason"])
+            self.assertTrue(denied(run(PRE, bash("hc " + sub, agent_id="sub-1"))), sub)
+        self.assertEqual(run(PRE, bash("ls; hc keys w enter"))["hookSpecificOutput"]["permissionDecision"], "ask")
+        self.assertTrue(denied(run(PRE, bash("hc keys w enter; hc kill w"))))
+
+    def test_S17_command_substitutions_are_inspected(self):
+        """agent-runtime-tools/S17"""
+        for command in ("echo `hc kill w`", 'echo "$(hc send w hi)"', "x=$(hc rm w)", "echo $(echo $(hc kill w))",
+                        'echo "`hc run x`"'):
+            self.assertTrue(denied(run(PRE, bash(command))), command)
+        self.assertIsNone(run(PRE, bash("echo $(hc get w) `hc ls`")))
+
+    def test_S17_unparseable_or_non_string_commands_mentioning_hc_are_denied(self):
+        """agent-runtime-tools/S17"""
+        for command in ("hc send w 'unterminated", ["hc", "kill", "w"], {"cmd": "hc kill w"}):
+            self.assertTrue(denied(run(PRE, bash(command))), command)
+        self.assertIsNone(run(PRE, bash("echo 'unterminated")))
+        self.assertIsNone(run(PRE, bash(["ls"])))
 
     def test_S17_reads_stay_allowed(self):
         """agent-runtime-tools/S17"""
@@ -69,7 +92,7 @@ class RawHcTests(unittest.TestCase):
 
     def test_S17_wrapped_and_nested_forms_are_denied(self):
         """agent-runtime-tools/S17"""
-        for command in ("FOO=1 hc send w hi", "timeout 5 hc kill w", "sudo -u x hc rm w", "ls; hc keys w enter",
+        for command in ("FOO=1 hc send w hi", "timeout 5 hc kill w", "sudo -u x hc rm w", "ls; hc kill w",
                         "ls\nhc send w hi", "sh -c 'hc send w hi'", "bash -lc \"hc run x\"", "eval 'hc kill w'",
                         "hc exec -- hc send w hi", "if true; then hc rm w; fi", "/usr/local/bin/hc interrupt w",
                         "env X=1 nohup hc send w hi", "true && (hc kill w)", "xargs -n1 hc rm"):

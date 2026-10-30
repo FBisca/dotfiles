@@ -4,6 +4,7 @@ agent-runtime tools. `--cli codex` selects the Codex payload (Bash only, no agen
 
 import json
 import os
+import re
 import shlex
 import sys
 
@@ -66,8 +67,25 @@ def skip_options(words, i, name):
     return i
 
 
+def substitutions(command):
+    """Contents of backtick and $(...) substitutions, including those inside double quotes."""
+    found = re.findall(r"`([^`]*)`", command)
+    i = command.find("$(")
+    while i != -1:
+        depth, j = 1, i + 2
+        while j < len(command) and depth:
+            depth += {"(": 1, ")": -1}.get(command[j], 0)
+            j += 1
+        found.append(command[i + 2:j - 1 if depth == 0 else j])
+        i = command.find("$(", i + 2)
+    return found
+
+
 def invocations(command, depth=0):
-    """Yield (program basename, args) for each simple command, descending into sh -c."""
+    """Yield (program basename, args) for each simple command, descending into sh -c and substitutions."""
+    if depth < 3:
+        for inner in substitutions(command):
+            yield from invocations(inner, depth + 1)
     try:
         parsed = list(segments(command))
     except ValueError:
@@ -112,19 +130,34 @@ def file_read_only(args, sub):
     return bool(rest) and rest[0] in HC_INFO_FLAGS | {"read", "help"}
 
 
-HC_DENIED = {"run", "send", "keys", "kill", "interrupt", "rm"}
+HC_DENIED = {"run", "send", "kill", "rm"}
+HC_ASKED = {"keys", "interrupt"}
 MUTATING_TOOLS = {"spawn", "message", "resume", "stop", "report"}
 TOOL_PREFIX = "mcp__plugin_agent-runtime_agent-runtime__"
 
 
-def verdict(command):
+def verdict(command, is_subagent):
+    """(decision, reason) or None."""
+    if not isinstance(command, str):
+        command = json.dumps(command)
+        if re.search(r"\bhc\b", command):
+            return "deny", "Cannot parse this command and it mentions hc: use the agent-runtime tools."
+        return None
+    try:
+        list(segments(command))
+    except ValueError:
+        if re.search(r"\bhc\b", command):
+            return "deny", "Cannot parse this command and it mentions hc: use the agent-runtime tools."
+    result = None
     for program, args in invocations(command):
         if program != "hc":
             continue
         sub = hc_subcommand(args)
-        if sub in HC_DENIED or (sub == "file" and not file_read_only(args, sub)):
-            return "Do not run 'hc %s' in Bash: use the agent-runtime tools." % sub
-    return None
+        if sub in HC_ASKED and not is_subagent:
+            result = result or ("ask", "approve to press keys in a worker")
+        elif sub in HC_DENIED | HC_ASKED or (sub == "file" and not file_read_only(args, sub)):
+            return "deny", "Do not run 'hc %s' in Bash: use the agent-runtime tools." % sub
+    return result
 
 
 def tool_verdict(tool_name, is_subagent):
@@ -139,15 +172,16 @@ def main(argv=()):
         data = json.load(sys.stdin)
         name = data.get("tool_name", "Bash")
         if name == "Bash":
-            reason = verdict(data.get("tool_input", {}).get("command", ""))
+            result = verdict(data.get("tool_input", {}).get("command", ""), bool(data.get("agent_id")))
         elif "codex" in argv:
             return 0
         else:
             reason = tool_verdict(name, bool(data.get("agent_id")))
-        if reason:
+            result = ("deny", reason) if reason else None
+        if result:
             print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",
-                                                     "permissionDecision": "deny",
-                                                     "permissionDecisionReason": reason}}))
+                                                     "permissionDecision": result[0],
+                                                     "permissionDecisionReason": result[1]}}))
     except Exception:
         pass
     return 0

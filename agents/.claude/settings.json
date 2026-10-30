@@ -1,24 +1,153 @@
 {
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
   "attribution": {
     "commit": "",
-    "pr": ""
+    "pr": "",
+    "sessionUrl": false
+  },
+  "permissions": {
+    "allow": [
+      "mcp__notion"
+    ]
+  },
+  "model": "opus",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/fbisca/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/fbisca/developer/agent-fleet/hooks/session_start.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/fbisca/developer/agent-fleet/hooks/session_log.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/fbisca/developer/agent-fleet/hooks/session_log.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/fbisca/developer/agent-fleet/hooks/skill_usage.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   },
   "statusLine": {
     "type": "command",
     "command": "input=$(cat); model=$(echo \"$input\" | jq -r '.model.display_name'); used=$(echo \"$input\" | jq -r '.context_window.used_percentage // empty'); if [ -z \"$used\" ]; then echo \"$model\"; else pct=$(printf '%.0f' \"$used\"); bar_width=10; fill=$((pct * bar_width / 100)); filled=$(printf '%*s' \"$fill\" '' | tr ' ' '█'); empty=$(printf '%*s' $((bar_width - fill)) '' | tr ' ' '░'); printf \"%s [%s%s] %d%%\\n\" \"$model\" \"$filled\" \"$empty\" \"$pct\"; fi"
   },
   "enabledPlugins": {
-    "understand-anything@understand-anything": true
+    "dart@claude-code-lsps": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "hyperframes@hyperframes": false
   },
   "extraKnownMarketplaces": {
+    "claude-code-lsps": {
+      "source": {
+        "source": "github",
+        "repo": "Piebald-AI/claude-code-lsps"
+      }
+    },
     "claude-plugins-official": {
       "source": {
         "source": "github",
         "repo": "anthropics/claude-plugins-official"
       }
+    },
+    "hyperframes": {
+      "source": {
+        "source": "github",
+        "repo": "heygen-com/hyperframes"
+      }
     }
   },
-  "effortLevel": "high",
+  "effortLevel": "xhigh",
+  "modelSettings": {
+    "glm-5.3:cloud": {
+      "effortLevel": "xhigh"
+    },
+    "claude-sonnet-5": {
+      "effortLevel": "high"
+    },
+    "claude-fable-5-1": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    }
+  },
+  "voice": {
+    "enabled": true,
+    "mode": "hold"
+  },
+  "skipWorkflowUsageWarning": true,
+  "teammateMode": "tmux",
   "agentPushNotifEnabled": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "autoMode": {
+    "environment": [
+      "### Org-wide",
+      "**Organization**: Heritage Holdings (github.com/heritageholdings)",
+      "**Cloud provider(s)**: None configured",
+      "**Repository visibility**: Private (heritageholdings/svc-platform, confirmed via gh)",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: None configured",
+      "**Default / protected branches**: `main` (default, protected; ruleset `only-private-visibility` active)",
+      "**CI/CD deploy targets**: None configured",
+      "**Network posture**: None configured",
+      "**Source control**: The trusted repo (heritageholdings/svc-platform) and its origin remote only",
+      "**Trusted internal domains**: None configured",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: app.iconic.test (contacted 34× in this project's recent Claude Code usage); uploads.linear.app (Linear attachment upload, 1×)",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: investor PII, KYC data, and financial/portfolio data handled by this service (capital calls, distributions, NAV, allocations); .env* files and files under packages/*/.env* and packages/lib-migrations (prod-gate.ts); share only with audiences cleared at the [named+specifics] bar",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment; packages/lib-migrations/src/prod-gate.ts suggests an explicit prod-gate mechanism in this repo — treat prod-gated operations as sensitive",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment; docs/guides/admin-rbac.md indicates RBAC config lives in this repo",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development (Heritage Platform Service — GraphQL backend for PE portfolio/investor relations)",
+      "**Trusted repo**: heritageholdings/svc-platform (this checkout) and its origin remote — private, so confidential material is fine to commit here, but secrets and investor PII are never cleared by visibility alone",
+      "**Org-specific CLIs**: linear (Linear CLI, 5× this project), playwright-cli (27× this project, likely test/e2e tooling)",
+      "**routine under this project**: gh CLI usage (PR checks, discussions) and pnpm workspace scripts (dev, build, check:types, lint, test) are routine in this repo"
+    ]
+  },
+  "voiceEnabled": true
 }

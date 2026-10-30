@@ -176,6 +176,22 @@ class ContractTests(unittest.TestCase):
                 mechanism = {"hc": "hc run --bg", "herdmates": "named native teammate", "native": "named teammate"}
                 self.assertIn(mechanism[runtime], adapter)
 
+    def test_S33_contract_lists_resume_with_runtime_operation_and_help_marks_it_in_contract(self):
+        operation = {"hc": "hc send --wait", "herdmates": "SendMessage", "native": "followup_task"}
+        for runtime, marker in operation.items():
+            with self.subTest(runtime=runtime):
+                _, out = run_main("contract", "--runtime", runtime)
+                self.assertIn("`resume(name, task)`", out)
+                self.assertIn("A fresh spawn with the same name is not resumption.", out)
+                adapter = out[out.index(ADAPTER_MARKERS[runtime]):]
+                resume_line = [l for l in adapter.splitlines() if l.startswith("- `resume`")]
+                self.assertTrue(resume_line)
+                self.assertTrue(any(marker in l for l in resume_line))
+                _, helped = run_main("help", "--runtime", runtime)
+                rows = [l for l in helped.splitlines() if "resume" in l and "in-contract:" in l]
+                self.assertTrue(rows)
+                self.assertTrue(all("in-contract: yes" in l for l in rows))
+
     def test_S8_contract_output_stays_within_600_words(self):
         for runtime in ADAPTER_MARKERS:
             with self.subTest(runtime=runtime):

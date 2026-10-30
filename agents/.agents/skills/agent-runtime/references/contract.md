@@ -2,13 +2,14 @@
 
 Delegate only through these verbs; the adapter below maps them to this runtime.
 
-- `spawn(kind, role, task, cwd)`: start one agent (`implementer`, `reviewer`) on one task in one checkout. Put the whole task in the call. `kind` is `lookup` or `worker`. Result: its name and proof the task was delivered.
-- `message(to, text)`: send text to a worker. Result: delivered, or a clear refusal. Never resend blindly.
+- `spawn(kind, role, task, cwd)`: start one agent (`implementer`, `reviewer`) on one task in one checkout. Put the whole task in the call. Result: its name, task delivered.
+- `message(to, text)`: send text to a worker. Never resend blindly.
+- `resume(name, task)`: give a finished or idle worker another turn. A fresh spawn with the same name is not resumption.
 - `report(text)`: a worker sends its result or blocker to its parent when done or stuck.
 - `wait(any|all|name)`: block until the next child's news, no child working, or the named worker stops. Never sleep or poll; a wake-up is not completion.
 - `collect(name)`: read the worker's actual result and result files. Never infer success.
 - `stop(name)`: end a worker you started, after its work is accepted.
-- `status(name)`, `list()`: return `{name, runtime, role, parent, state, turn, native, next[]}`. `state` is working|idle|blocked|done|exited|unknown. `blocked` means a person is needed: read the screen, ask the user, never force input past a dialog. `native` is a small object of the runtime's raw fields (empty if no process). `next[]` lists valid commands now.
+- `status(name)`, `list()`: return `{name, runtime, role, parent, state, turn, native, next[]}`. `state` is working|idle|blocked|done|exited|unknown. `blocked` means a person is needed: ask the user; never force input past a dialog. `native` is a small object of the runtime's raw fields (empty if no process). `next[]` lists valid commands now.
 
 ## Routing rule
 

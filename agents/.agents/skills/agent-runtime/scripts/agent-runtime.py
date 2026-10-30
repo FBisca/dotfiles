@@ -96,12 +96,23 @@ def hc_next(name, state):
     return [row("state not reported", "check again", "status"), row("see the screen", "read the output", "collect")]
 
 
+HC_NATIVE_KEYS = ("address", "name", "state", "status", "turn", "exit_code", "reason")
+HERDR_NOTE = "read only; verify live agent identity before mapping a task to this pane"
+
+
+def hc_native(raw):
+    native = {key: raw.get(key) for key in HC_NATIVE_KEYS}
+    foreground = raw.get("foreground")
+    native["foreground"] = {"argv": foreground.get("argv")} if isinstance(foreground, dict) else None
+    return native
+
+
 def hc_record(name, raw):
     state = hc_state(raw)
     parent = raw.get("parent")
     return record("hc", raw.get("name") or raw.get("address") or name, state,
                   role="worker" if parent else "lead", parent=parent, turn=raw.get("turn"),
-                  native=raw, next_rows=hc_next(raw.get("name") or raw.get("address") or name, state))
+                  native=hc_native(raw), next_rows=hc_next(raw.get("name") or raw.get("address") or name, state))
 
 
 def herdr_snapshot(pane, session, env):
@@ -150,12 +161,13 @@ def status(runtime, name, env, session=None):
                              row("no longer needed", "ask Claude to shut it down", "stop")],
                     "blocked": [row("a person is needed", "read the pane and ask the user", "collect")],
                     }.get(state, [row("state not reported", "check the native task list", "status")])
-            return record("herdmates", snap["pane"], state, native=snap, next_rows=rows)
+            native = {"pane": snap["pane"], "session": snap["session"], "agent_status": herdr, "note": HERDR_NOTE}
+            return record("herdmates", snap["pane"], state, native=native, next_rows=rows)
     except READ_ERRORS as error:
         return record(runtime, name, "unknown", native={"error": str(error)},
                       next_rows=[row("status could not be read", "check again", "status"),
                                  row("see the output", "read it", "collect")])
-    return record("native", name, "unknown", native=None,
+    return record("native", name, "unknown", native={},
                   next_rows=[row("no process to query", "use the subagent's return value", "collect"),
                              row("ask it directly", "SendMessage to %s" % name, "message")])
 
@@ -166,10 +178,21 @@ def list_children(runtime, env):
         return []
     me = env.get("HC_TERMINAL_ID")
     infos = []
+    if not me:
+        return infos
     try:
-        listing = json.loads(run_command(["hc", "ls", "--json"]))
+        listing = json.loads(run_command(["hc", "ls", "--all", "--json"]))
     except READ_ERRORS:
         return infos
+    for entry in listing.get("terminals", []):
+        if entry.get("parent") != me:
+            continue
+        address = entry.get("address")
+        try:
+            infos.append(hc_record(address, json.loads(run_command(["hc", "get", address, "--json"]))))
+        except READ_ERRORS:
+            continue
+    return infos
     for entry in listing.get("terminals", []):
         address = entry.get("address")
         try:
@@ -221,9 +244,13 @@ def cmd_help(args):
     return 0
 
 
+def dump(value, args):
+    return json.dumps(value, indent=2) if args.pretty else json.dumps(value, separators=(",", ":"))
+
+
 def cmd_status(args):
     info = status(runtime_arg(args), args.name, os.environ, session=args.session)
-    print(json.dumps(info, indent=2))
+    print(dump(info, args))
     return 0
 
 
@@ -231,7 +258,7 @@ def cmd_list(args):
     runtime = runtime_arg(args)
     if runtime != "hc":
         print("list is only available under hc; use the runtime's own tools", file=sys.stderr)
-    print(json.dumps(list_children(runtime, os.environ), indent=2))
+    print(dump(list_children(runtime, os.environ), args))
     return 0
 
 
@@ -253,10 +280,12 @@ def build_parser():
     p.add_argument("--session", help="exact Herdr session name (herdmates)")
     p.add_argument("--cli", choices=("claude", "codex"), default="claude")
     p.add_argument("--runtime", choices=RUNTIMES, help="override the resolved runtime")
+    p.add_argument("--pretty", action="store_true", help="indent the JSON")
     p.set_defaults(func=cmd_status)
     p = sub.add_parser("list", help="JSON records for the agents you started (hc)")
     p.add_argument("--cli", choices=("claude", "codex"), default="claude")
     p.add_argument("--runtime", choices=RUNTIMES, help="override the resolved runtime")
+    p.add_argument("--pretty", action="store_true", help="indent the JSON")
     p.set_defaults(func=cmd_list)
     return parser
 

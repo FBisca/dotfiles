@@ -8,7 +8,7 @@ Delegate only through these verbs; the adapter below maps them to this runtime.
 - `wait(any|all|name)`: block until the next child's news, no child working, or the named worker stops. Never sleep or poll; a wake-up is not completion.
 - `collect(name)`: read the worker's actual result and result files. Never infer success.
 - `stop(name)`: end a worker you started, after its work is accepted.
-- `status(name)`, `list()`: return `{name, runtime, role, parent, state, turn, native, next[]}`. `state` is working|idle|blocked|done|exited|unknown. `blocked` means a person is needed: read the screen, ask the user, never force input past a dialog. `native` is the runtime's raw fields. `next[]` lists valid commands now.
+- `status(name)`, `list()`: return `{name, runtime, role, parent, state, turn, native, next[]}`. `state` is working|idle|blocked|done|exited|unknown. `blocked` means a person is needed: read the screen, ask the user, never force input past a dialog. `native` is a small object of the runtime's raw fields (empty if no process). `next[]` lists valid commands now.
 
 ## Routing rule
 

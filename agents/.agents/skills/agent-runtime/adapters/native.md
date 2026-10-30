@@ -1,6 +1,6 @@
 # Adapter: native
 
-The agent's own subagent tools; `status` and `list` carry `native: true`.
+The agent's own subagent tools; `status` has `native: {}`; its `next` rows point to the return value or SendMessage.
 
 ## Claude
 

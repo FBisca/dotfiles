@@ -210,16 +210,24 @@ class ContractTests(unittest.TestCase):
 STATUS_KEYS = {"name", "runtime", "role", "parent", "state", "turn", "native", "next"}
 
 
-def hc_world(terminals):
-    """Fake hc: `get <t>` and `ls --json` answer from a dict of raw get-records keyed by address."""
+def hc_world(terminals, calls=None):
+    """Fake hc: `get <t>` answers from raw get-records; `ls --json [--all]` rows carry parent when non-null."""
     def fake(argv):
+        if calls is not None:
+            calls.append(list(argv))
         if argv[:2] == ["hc", "get"]:
             if argv[2] not in terminals:
                 raise RuntimeError("not found")
             return json.dumps(terminals[argv[2]])
         if argv[:2] == ["hc", "ls"]:
-            rows = [{"address": a, "state": r.get("state"), "turn": r.get("turn")} for a, r in terminals.items()
-                    if r.get("state") != "finished"]
+            rows = []
+            for a, r in terminals.items():
+                if r.get("state") == "finished" and "--all" not in argv:
+                    continue
+                row_ = {"address": a, "state": r.get("state"), "turn": r.get("turn")}
+                if r.get("parent"):
+                    row_["parent"] = r["parent"]
+                rows.append(row_)
             return json.dumps({"hidden_finished": 0, "terminals": rows})
         raise AssertionError("unexpected command %r" % (argv,))
     return fake
@@ -244,6 +252,31 @@ class StatusTests(unittest.TestCase):
         self.assertTrue(info["next"])
         for row in info["next"]:
             self.assertEqual(set(row), {"why", "do", "verb", "gap"})
+
+    def test_S11_native_field_is_trimmed_to_actionable_raw_fields(self):
+        record = raw({"app": "claude-code", "state": "working"}, exit_code=None, reason=None,
+                     screen="exact", cols=216, records={"x": 1}, foreground={"argv": ["claude"], "pid": 1})
+        info = hc_status(record)
+        self.assertEqual(set(info["native"]), {"address", "name", "state", "status", "turn", "exit_code",
+                                               "reason", "foreground"})
+        self.assertEqual(info["native"]["foreground"], {"argv": ["claude"]})
+        self.assertEqual(app.status("native", "helper", {})["native"], {})
+        env = {"HERDR_ENV": "1", "HERDR_SOCKET_PATH": "/s", "HERDR_PANE_ID": "w1:p1"}
+        reply = json.dumps({"result": {"pane": {"agent_status": "idle", "extra": 1}}})
+        with patch.object(app, "run_command", return_value=reply):
+            herd = app.status("herdmates", "w1:p2", env, session="test")["native"]
+        self.assertEqual(set(herd), {"pane", "session", "agent_status", "note"})
+        self.assertIn("verify live agent identity", herd["note"])
+
+    def test_S11_status_output_is_compact_json_and_pretty_is_optional(self):
+        world = {"fix": raw("idle")}
+        for flags, multiline in (([], False), (["--pretty"], True)):
+            buf = io.StringIO()
+            with patch.object(app, "run_command", side_effect=hc_world(world)), \
+                    patch.dict(app.os.environ, {}, clear=True), redirect_stdout(buf):
+                self.assertEqual(app.main(["status", "fix", "--runtime", "hc", *flags]), 0)
+            self.assertEqual("\n" in buf.getvalue().strip(), multiline)
+            json.loads(buf.getvalue())
 
     def test_S11_status_command_prints_json_through_symlink(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -336,14 +369,19 @@ class StatusTests(unittest.TestCase):
         self.assertIn("return value", text)
         self.assertIn("SendMessage", text)
 
-    def test_S15_hc_list_returns_one_status_per_child_of_caller(self):
+    def test_S15_hc_list_returns_one_status_per_child_of_caller_and_never_gets_foreign_terminals(self):
         world = {"a": raw("working", parent="t0", address="a"), "b": raw("idle", parent="t0", address="b"),
-                 "c": raw("idle", parent="t5", address="c"), "d": raw("idle", parent=None, address="d")}
+                 "c": raw("idle", parent="t5", address="c"), "d": raw("idle", parent=None, address="d"),
+                 "e": raw("done", parent="t0", state="finished", address="e")}
         for address, record in world.items():
             record["name"] = "n" + address
-        with patch.object(app, "run_command", side_effect=hc_world(world)):
+        calls = []
+        with patch.object(app, "run_command", side_effect=hc_world(world, calls)):
             infos = app.list_children("hc", {"HC_TERMINAL_ID": "t0"})
-        self.assertEqual(sorted(i["name"] for i in infos), ["na", "nb"])
+        self.assertEqual(sorted(i["name"] for i in infos), ["na", "nb", "ne"])
+        self.assertEqual({i["name"]: i["state"] for i in infos}["ne"], "exited")
+        self.assertIn(["hc", "ls", "--all", "--json"], calls)
+        self.assertEqual(sorted(c[2] for c in calls if c[1] == "get"), ["a", "b", "e"])
         self.assertTrue(all(set(i) == STATUS_KEYS for i in infos))
 
     def test_S15_list_command_prints_json_array(self):

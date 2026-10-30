@@ -7,9 +7,9 @@
   - Codex: `hc run --bg --name <n> --cwd <dir> codex --no-daemon "<implementer instructions + task>"`.
   - If `first_message.sent` is false, the task was not sent: `hc read <n>`; for a trust dialog `hc keys <n> down enter`, then send it. Never resend blindly.
   - Exact scope; no `worker`s of its own unless assigned; report via `hc send $HC_TERMINAL_ID`.
-- `message`: `hc send <n> "<text>"` (`--wait` waits for the turn). Never `--force` past a permission dialog.
+- `message`: `hc send <n> "<text>"`. Never `--force` past a permission dialog.
 - `report`: `hc send <parent> "<result or blocker>"`.
 - `wait`: `hc wait --children any|all`, `hc wait <n>`. A `message` or `timeout` wake-up is not completion.
 - `collect`: `hc read --lines N <n>`, then the result files.
 - `stop`: `hc kill <n>`, then `hc rm <n>`; your own terminals only.
-- `status`/`list`: wrap `hc get <n>` (`status` is an object `{app, state}`) and `hc ls` (`status` is a string; it lists the user's other terminals too, so filter to your children by `hc get` parent). `idle`, `working`, `done`, `blocked` map directly; a finished terminal is `exited`; `error`, missing or anything else is `unknown`. `blocked` means a person is needed: its `next` includes the raw `hc keys` row as a gap.
+- `status`/`list`: wrap `hc get <n>` (`native` keeps address, name, state, status, turn, exit_code, reason, argv) (`status` is an object `{app, state}`) and `hc ls` (`status` is a string; it lists the user's other terminals too, so filter to your children by `hc get` parent). `idle`, `working`, `done`, `blocked` map directly; a finished terminal is `exited`; anything else (`error`, missing) is `unknown`. `blocked` means a person is needed: its `next` includes the raw `hc keys` row as a gap.

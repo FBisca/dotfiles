@@ -153,14 +153,6 @@ class ToolCallTests(ServerCase):
         self.assertTrue(result["isError"])
         self.assertIn("hc-only", result["content"][0]["text"])
 
-    def test_unimplemented_tools_return_an_error_result(self):
-        """agent-runtime-tools/S1"""
-        session = self.start()
-        session.handshake()
-        result = self.call(session, "spawn", {})
-        self.assertTrue(result["isError"])
-        self.assertIn("not implemented", result["content"][0]["text"])
-
     def test_unknown_tool_is_a_protocol_error(self):
         """agent-runtime-tools/S1"""
         session = self.start()

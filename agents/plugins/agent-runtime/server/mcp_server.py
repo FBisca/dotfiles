@@ -8,9 +8,10 @@ import io
 import json
 import os
 import sys
+import threading
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import agent_runtime as lib  # noqa: E402
+import hc_tools  # noqa: E402
 
 PROTOCOL_VERSION = "2025-06-18"
 SUPPORTED_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
@@ -39,7 +40,8 @@ TOOLS = [
      schema({"name": text("worker name"), "task": text("what to do next")}, ["name", "task"])),
     ("wait", "Block until the next child reports, none is working, or the named worker stops. Never poll. "
              "Returns the status records of the workers it names.",
-     schema({"target": text("any, all or a worker name")}, ["target"])),
+     schema({"target": text("any, all or a worker name"),
+             "timeout": {"type": "integer", "description": "seconds, default 170, max 590"}}, ["target"])),
     ("status", "State of one agent: {name, runtime, role, parent, state, turn, native, next[]}. "
                "state is working|idle|blocked|done|exited|unknown; blocked needs the user.",
      schema({"name": text("worker name or address")}, ["name"])),
@@ -63,33 +65,9 @@ def tool_result(payload, is_error=False):
     return {"content": [{"type": "text", "text": body}], "isError": is_error}
 
 
-def runtime_name(env):
-    return lib.resolve(env)["runtime"]
-
-
-def call_status(arguments, env):
-    name = arguments.get("name")
-    if not isinstance(name, str) or not name:
-        return tool_result("name is required", True)
-    return tool_result(lib.status(runtime_name(env), name, env))
-
-
-def call_list(arguments, env):
-    runtime = runtime_name(env)
-    if runtime != "hc":
-        return tool_result("list is hc-only; use the runtime's own tools", True)
-    return tool_result(lib.list_children(runtime, env))
-
-
-IMPLEMENTED = {"status": call_status, "list": call_list}
-
-
-def call_tool(name, arguments, env):
-    handler = IMPLEMENTED.get(name)
-    if handler is None:
-        return tool_result("gap: %s not implemented yet; ask the user" % name, True)
+def call_tool(name, arguments, env, ctx):
     try:
-        return handler(arguments, env)
+        return hc_tools.call(name, arguments, env, ctx)
     except Exception as error:  # a tool failure must not kill the server
         log("%s failed: %s" % (name, error))
         return tool_result("%s failed: %s" % (name, error), True)
@@ -136,9 +114,45 @@ def dispatch(method, request_id, params, env):
         if name not in TOOL_NAMES:
             return rpc_error(request_id, -32602, "unknown tool: %s" % name)
         arguments = params.get("arguments")
-        result = call_tool(name, arguments if isinstance(arguments, dict) else {}, env)
+        result = call_tool(name, arguments if isinstance(arguments, dict) else {}, env, hc_tools.Context())
     else:
         return rpc_error(request_id, -32601, "method not found: %s" % method)
+    return {"jsonrpc": "2.0", "id": request_id, "result": result}
+
+
+def start_call(message, env, reply, calls):
+    """Run one tools/call on its own thread so waits never block ping or cancellation."""
+    request_id = message["id"]
+    ctx = hc_tools.Context()
+    calls[request_id] = ctx
+
+    def work():
+        try:
+            params = message.get("params")
+            outcome = hc_tools_dispatch(message, params, env, ctx)
+        finally:
+            calls.pop(request_id, None)
+        if outcome is not None and not ctx.cancelled.is_set():
+            reply(outcome)
+
+    thread = threading.Thread(target=work, daemon=True)
+    thread.start()
+    return thread
+
+
+def hc_tools_dispatch(message, params, env, ctx):
+    request_id = message["id"]
+    if not isinstance(params, dict):
+        return rpc_error(request_id, -32602, "params must be an object")
+    name = params.get("name")
+    if name not in TOOL_NAMES:
+        return rpc_error(request_id, -32602, "unknown tool: %s" % name)
+    arguments = params.get("arguments")
+    try:
+        result = call_tool(name, arguments if isinstance(arguments, dict) else {}, env, ctx)
+    except Exception as error:
+        log("%s failed: %s" % (name, error))
+        return rpc_error(request_id, -32603, "internal error")
     return {"jsonrpc": "2.0", "id": request_id, "result": result}
 
 
@@ -146,17 +160,38 @@ def serve(stdin=None, stdout=None, env=None):
     stdin = stdin or io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8", errors="replace", newline=None)
     stdout = stdout or sys.stdout
     env = dict(os.environ if env is None else env)
+    lock, calls, threads = threading.Lock(), {}, []
+
+    def reply(payload):
+        with lock:
+            stdout.write(json.dumps(payload, separators=(",", ":")) + "\n")
+            stdout.flush()
+
     for line in stdin:
         line = line.strip()
         if not line:
             continue
         try:
-            reply = handle(json.loads(line), env)
+            message = json.loads(line)
         except json.JSONDecodeError:
-            reply = rpc_error(None, -32700, "parse error")
-        if reply is not None:
-            stdout.write(json.dumps(reply, separators=(",", ":")) + "\n")
-            stdout.flush()
+            reply(rpc_error(None, -32700, "parse error"))
+            continue
+        if isinstance(message, dict) and message.get("method") == "notifications/cancelled" and "id" not in message:
+            params = message.get("params")
+            ctx = calls.get(params.get("requestId")) if isinstance(params, dict) else None
+            if ctx:
+                ctx.cancel()
+            continue
+        if isinstance(message, dict) and message.get("method") == "tools/call" and "id" in message:
+            threads.append(start_call(message, env, reply, calls))
+            continue
+        outcome = handle(message, env)
+        if outcome is not None:
+            reply(outcome)
+    for ctx in list(calls.values()):
+        ctx.cancel()
+    for thread in threads:
+        thread.join(timeout=10)
     return 0
 
 

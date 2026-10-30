@@ -261,11 +261,20 @@ class Store:
             dispatch_events.notify(self.directory)
 
     def fail(self, assignment, inactive=False, restore=None):
-        """restore: prior link of a task a failed resume moved; it goes back to a still-live earlier assignment."""
+        """restore: prior link of a task a failed resume moved; it goes back to a still-live earlier assignment.
+
+        inactive means the terminal is gone: the assignment then fails in any state but complete (a blocked or
+        decision report that landed first no longer keeps its task) and the lead hears one failed message.
+        Without it (resume) a report that landed first stands: the worker is still alive.
+        """
+        wrote = False
         with self.transaction() as db:
-            changed = db.execute("UPDATE assignments SET state='failed' WHERE id=? AND state IN ('pending','working')",
+            states = "('pending','working','blocked','decision')" if inactive else "('pending','working')"
+            prior = db.execute("SELECT a.state,a.team,a.worker,a.current,t.lead FROM assignments a JOIN teams t ON t.id=a.team "
+                               "WHERE a.id=?", (assignment,)).fetchone()
+            changed = db.execute("UPDATE assignments SET state='failed' WHERE id=? AND state IN " + states,
                                  (assignment,)).rowcount
-            if changed:  # a blocked/decision report that landed first keeps its task
+            if changed:
                 live = restore and restore["status"] != "pending" and restore["assignment"] and db.execute(
                     "SELECT 1 FROM assignments WHERE id=? AND current=1 AND state NOT IN ('complete','failed')",
                     (restore["assignment"],)).fetchone()
@@ -274,9 +283,19 @@ class Store:
                                (restore["status"], restore["owner"], restore["assignment"], restore["task_id"], assignment))
                 else:
                     self._release(db, assignment)
+                if inactive and prior["state"] != "pending":  # the lead already heard from this worker
+                    wrote = True
+                    envelope = {"message_id": uid(), "team_id": prior["team"], "worker_id": prior["worker"],
+                                "assignment_id": assignment, "sender": prior["worker"], "recipient": prior["lead"],
+                                "kind": "failed", "text": "worker terminal removed before completion"}
+                    db.execute("INSERT INTO messages(id,team,recipient,assignment,body) VALUES (?,?,?,?,?)",
+                               (envelope["message_id"], prior["team"], prior["lead"], assignment,
+                                json.dumps(envelope, separators=(",", ":"))))
             # A worker that never bound an address never started: it is not a teammate (D25).
             db.execute("UPDATE workers SET active=0 WHERE (address IS NULL OR ?) AND id=(SELECT worker FROM assignments WHERE id=?)",
                        (int(inactive), assignment))
+        if wrote:
+            dispatch_events.notify(self.directory)
 
     def publish(self, scope, address, parent, assignment, text, kind, message_id=None, caller_name=None, ack=None, generation=None):
         if kind not in REPORT_KINDS:

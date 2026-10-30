@@ -183,3 +183,71 @@ class SpawnCleanupTests(ToolCase):
         store = Store({"HOME": str(self.dir / "home")})
         with store.transaction() as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM assignments").fetchone()[0], 0)
+
+
+class FastReportTests(ToolCase):
+    """A report that lands while hc run is still in flight (publish binds the pending assignment)."""
+
+    def setUp(self):
+        super().setUp()
+        self.env = {"PATH": "%s:/usr/bin:/bin" % (self.dir / "bin"), "HOME": str(self.dir / "home"), "HC_TERMINAL_ID": "t0"}
+        self.env.update(ENV)
+
+    def spawn_with_fast_report(self, replies, kind, link_task=True):
+        self.start(replies, ENV)
+        store = Store(self.env)
+        real_register, real_run = Store.register, hc_tools.run
+        seen = {}
+
+        def register(self_, team, name, *rest, **more):
+            identity = real_register(self_, team, name, *rest, **more)
+            seen.update(identity)
+            if link_task:
+                with self_.transaction() as db:
+                    db.execute("INSERT INTO tasks VALUES ('t1',?,'s','in_progress',?,?,'[]')",
+                               (team, identity["worker_id"], identity["assignment_id"]))
+            return identity
+
+        def run(argv, env_, ctx, timeout=10):
+            if argv[1] == "run":
+                scope = hc_tools.dispatch_identity(self.env)[0]
+                store.publish(scope, "t9", "t0", seen["assignment_id"], "early", kind, caller_name="w1")
+                if replies.get("timeout"):
+                    raise hc_tools.ToolError("hc run timed out")
+            return real_run(argv, env_, ctx, timeout)
+
+        with mock.patch.object(Store, "register", register), mock.patch.object(hc_tools, "run", run):
+            with self.assertRaises(hc_tools.ToolError):
+                hc_tools.spawn(ARGS, self.env, hc_tools.Context())
+        return store, seen
+
+    def check_unsent(self, kind):
+        store, seen = self.spawn_with_fast_report(
+            {"run": {"out": json.dumps({"first_message": {"sent": False}})}, "get:w1": {"out": raw("w1", "t0")}}, kind)
+        with store.transaction() as db:
+            self.assertEqual(db.execute("SELECT state FROM assignments").fetchone()[0], "failed")
+            self.assertEqual(tuple(db.execute("SELECT status,owner,assignment FROM tasks").fetchone()), ("pending", None, None))
+            kinds = [json.loads(r[0])["kind"] for r in db.execute("SELECT body FROM messages")]
+        self.assertEqual([k for k in kinds if k == "failed"], ["failed"])
+
+    def test_S1_unsent_spawn_after_a_blocked_report_fails_and_releases_the_task(self):
+        """agent-runtime/R72; agent-runtime/R69"""
+        self.check_unsent("blocked")
+
+    def test_S1_unsent_spawn_after_a_decision_report_fails_and_releases_the_task(self):
+        """agent-runtime/R72; agent-runtime/R69"""
+        self.check_unsent("decision")
+
+    def test_S2_timed_out_hc_run_after_a_fast_report_leaves_the_worker_inactive(self):
+        """agent-runtime/R72"""
+        store, seen = self.spawn_with_fast_report(
+            {"timeout": True, "get:w1": {"out": raw("w1", "t0")}}, "progress", link_task=False)
+        self.assertEqual([c[:2] for c in self.runs() if c[0] in ("kill", "rm")], [["kill", "w1"], ["rm", "w1"]])
+        with store.transaction() as db:
+            self.assertEqual([r[0] for r in db.execute("SELECT active FROM workers")], [0])
+        scope, lead = hc_tools.dispatch_identity(self.env)[:2]
+        team = store.team(scope, "t0", lead)
+        actor = {"team_id": team, "recipient": "t0", "worker_id": None, "assignment_id": None,
+                 "scope": scope, "address": "t0", "parent": None}
+        with self.assertRaisesRegex(StoreError, "not an active teammate"):
+            store.peer(actor, "w1", "ping")

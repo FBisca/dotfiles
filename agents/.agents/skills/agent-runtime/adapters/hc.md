@@ -12,4 +12,4 @@
 - `wait`: `hc wait --children any|all`, `hc wait <n>`. `reason: message` or `timeout` is not completion; wait again.
 - `collect`: `hc read --lines N <n>`, then the result files. Reports arrive as `<hc from="t7 review">…</hc>`.
 - `stop`: `hc kill <n>` then `hc rm <n>`, only your own terminals.
-- `status`/`list`: `hc get <n>` (`status` is an object `{app, state}`), `hc ls` (`status` is a string). States `idle`, `working`, `done`, `blocked` map directly; `error`, a missing status or anything else is `unknown`; a finished terminal is `exited`. `blocked` means a person is needed.
+- `status`/`list`: `agent-runtime status <n>` and `agent-runtime list` wrap `hc get <n>` (`status` is an object `{app, state}`), `hc ls` (`status` is a string). States `idle`, `working`, `done`, `blocked` map directly; `error`, a missing status or anything else is `unknown`; a finished terminal is `exited`. `blocked` means a person is needed.

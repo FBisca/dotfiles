@@ -49,6 +49,138 @@ def format_line(info):
     return " ".join("%s=%s" % (key, info[key]) for key in FIELDS if key in info)
 
 
+CONTRACT_STATES = ("working", "idle", "blocked", "done", "exited", "unknown")
+READ_ERRORS = (OSError, RuntimeError, ValueError, subprocess.SubprocessError)
+
+
+def run_command(argv):
+    result = subprocess.run(argv, capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                            timeout=HC_TIMEOUT_SECONDS)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "Command failed: " + argv[0])
+    return result.stdout.strip()
+
+
+def row(why, do, verb=None):
+    return {"why": why, "do": do, "verb": verb, "gap": verb is None}
+
+
+def record(runtime, name, state, role="unknown", parent=None, turn=None, native=None, next_rows=()):
+    return {"name": name, "runtime": runtime, "role": role, "parent": parent, "state": state,
+            "turn": turn, "native": native, "next": list(next_rows)}
+
+
+def hc_state(raw):
+    """Map an `hc get`/`hc ls` record (status is an object {app, state} or a string) to a contract state."""
+    if raw.get("state") == "finished":
+        return "exited"
+    status = raw.get("status")
+    if isinstance(status, dict):
+        status = status.get("state")
+    return status if status in ("working", "idle", "blocked", "done") else "unknown"
+
+
+def hc_next(name, state):
+    if state == "done":
+        return [row("work finished", "read the result", "collect"), row("worker no longer needed", "end it", "stop")]
+    if state == "idle":
+        return [row("turn ended, awaiting input", "send the next instruction", "message"),
+                row("read what it produced", "read the result", "collect")]
+    if state == "working":
+        return [row("still running", "block until it reports", "wait")]
+    if state == "blocked":
+        return [row("a person is needed (permission or question)", "read the screen and ask the user", "collect"),
+                row("answer the dialog only with the user's say-so", "hc keys %s <keys>" % name)]
+    if state == "exited":
+        return [row("process ended", "read the output", "collect"), row("clean up", "end it", "stop")]
+    return [row("state not reported", "check again", "status"), row("see the screen", "read the output", "collect")]
+
+
+def hc_record(name, raw):
+    state = hc_state(raw)
+    parent = raw.get("parent")
+    return record("hc", raw.get("name") or raw.get("address") or name, state,
+                  role="worker" if parent else "lead", parent=parent, turn=raw.get("turn"),
+                  native=raw, next_rows=hc_next(raw.get("name") or raw.get("address") or name, state))
+
+
+def herdr_snapshot(pane, session, env):
+    if env.get("HERDR_ENV") != "1":
+        raise ValueError("Herdr inspection requires a Herdr-managed caller")
+    if not (env.get("HERDR_SOCKET_PATH") and env.get("HERDR_PANE_ID")):
+        raise ValueError("missing Herdr caller identity")
+    if not (session and session.strip()):
+        raise ValueError("supply the exact Herdr session name")
+    inherited = env.get("HERDR_SESSION")
+    if inherited and inherited != session:
+        raise ValueError("session differs from caller's session")
+    target = pane or env["HERDR_PANE_ID"]
+    if target.startswith("-"):
+        raise ValueError("invalid pane ID")
+    result = json.loads(run_command(["herdr", "pane", "get", target, "--session", session]))
+    return {"session": session, "pane": target, "snapshot": result}
+
+
+def find_key(value, key):
+    if isinstance(value, dict):
+        if key in value:
+            return value[key]
+        value = list(value.values())
+    if isinstance(value, list):
+        for item in value:
+            found = find_key(item, key)
+            if found is not None:
+                return found
+    return None
+
+
+def status(runtime, name, env, session=None):
+    """One contract record for one agent. Never raises on runtime failures."""
+    try:
+        if runtime == "hc":
+            return hc_record(name, json.loads(run_command(["hc", "get", name, "--json"])))
+        if runtime == "herdmates":
+            snap = herdr_snapshot(name, session or env.get("HERDR_SESSION"), env)
+            herdr = find_key(snap["snapshot"], "agent_status")
+            state = herdr if herdr in ("idle", "working", "blocked", "done") else "unknown"
+            rows = {"working": [row("still running", "end your turn; its message arrives as input", "wait")],
+                    "idle": [row("turn ended", "send the next instruction", "message"),
+                             row("read what it produced", "read its last message", "collect")],
+                    "done": [row("work finished", "read its last message and the task result", "collect"),
+                             row("no longer needed", "ask Claude to shut it down", "stop")],
+                    "blocked": [row("a person is needed", "read the pane and ask the user", "collect")],
+                    }.get(state, [row("state not reported", "check the native task list", "status")])
+            return record("herdmates", snap["pane"], state, native=snap, next_rows=rows)
+    except READ_ERRORS as error:
+        return record(runtime, name, "unknown", native={"error": str(error)},
+                      next_rows=[row("status could not be read", "check again", "status"),
+                                 row("see the output", "read it", "collect")])
+    return record("native", name, "unknown", native=None,
+                  next_rows=[row("no process to query", "use the subagent's return value", "collect"),
+                             row("ask it directly", "SendMessage to %s" % name, "message")])
+
+
+def list_children(runtime, env):
+    """hc: one record per live terminal whose parent is the caller. Other runtimes have no list."""
+    if runtime != "hc":
+        return []
+    me = env.get("HC_TERMINAL_ID")
+    infos = []
+    try:
+        listing = json.loads(run_command(["hc", "ls", "--json"]))
+    except READ_ERRORS:
+        return infos
+    for entry in listing.get("terminals", []):
+        address = entry.get("address")
+        try:
+            raw = json.loads(run_command(["hc", "get", address, "--json"]))
+        except READ_ERRORS:
+            continue
+        if me and raw.get("parent") == me:
+            infos.append(hc_record(address, raw))
+    return infos
+
+
 def cmd_resolve(args):
     info = resolve(os.environ, args.cli)
     print(json.dumps(info) if args.json else format_line(info))
@@ -89,6 +221,20 @@ def cmd_help(args):
     return 0
 
 
+def cmd_status(args):
+    info = status(runtime_arg(args), args.name, os.environ, session=args.session)
+    print(json.dumps(info, indent=2))
+    return 0
+
+
+def cmd_list(args):
+    runtime = runtime_arg(args)
+    if runtime != "hc":
+        print("list is only available under hc; use the runtime's own tools", file=sys.stderr)
+    print(json.dumps(list_children(runtime, os.environ), indent=2))
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="agent-runtime", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -102,6 +248,16 @@ def build_parser():
         q.add_argument("--cli", choices=("claude", "codex"), default="claude")
         q.add_argument("--runtime", choices=RUNTIMES, help="override the resolved runtime")
         q.set_defaults(func=func)
+    p = sub.add_parser("status", help="one JSON record for one agent")
+    p.add_argument("name", help="hc terminal name or address; Herdr pane ID under herdmates")
+    p.add_argument("--session", help="exact Herdr session name (herdmates)")
+    p.add_argument("--cli", choices=("claude", "codex"), default="claude")
+    p.add_argument("--runtime", choices=RUNTIMES, help="override the resolved runtime")
+    p.set_defaults(func=cmd_status)
+    p = sub.add_parser("list", help="JSON records for the agents you started (hc)")
+    p.add_argument("--cli", choices=("claude", "codex"), default="claude")
+    p.add_argument("--runtime", choices=RUNTIMES, help="override the resolved runtime")
+    p.set_defaults(func=cmd_list)
     return parser
 
 

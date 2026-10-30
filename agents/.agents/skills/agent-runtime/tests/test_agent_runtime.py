@@ -204,5 +204,146 @@ class ContractTests(unittest.TestCase):
         self.assertIn("ask before the raw command", out)
 
 
+STATUS_KEYS = {"name", "runtime", "role", "parent", "state", "turn", "native", "next"}
+
+
+def hc_world(terminals):
+    """Fake hc: `get <t>` and `ls --json` answer from a dict of raw get-records keyed by address."""
+    def fake(argv):
+        if argv[:2] == ["hc", "get"]:
+            if argv[2] not in terminals:
+                raise RuntimeError("not found")
+            return json.dumps(terminals[argv[2]])
+        if argv[:2] == ["hc", "ls"]:
+            rows = [{"address": a, "state": r.get("state"), "turn": r.get("turn")} for a, r in terminals.items()
+                    if r.get("state") != "finished"]
+            return json.dumps({"hidden_finished": 0, "terminals": rows})
+        raise AssertionError("unexpected command %r" % (argv,))
+    return fake
+
+
+def raw(status, parent="t0", state="live", **extra):
+    return dict({"address": "t9", "name": "fix", "parent": parent, "state": state, "status": status, "turn": 3}, **extra)
+
+
+def hc_status(record, name="fix"):
+    with patch.object(app, "run_command", side_effect=hc_world({name: record})):
+        return app.status("hc", name, {"HC_TERMINAL_ID": "t0"})
+
+
+class StatusTests(unittest.TestCase):
+    def test_S11_hc_status_has_all_fields_and_non_empty_next(self):
+        info = hc_status(raw({"app": "claude-code", "state": "working"}))
+        self.assertEqual(set(info), STATUS_KEYS)
+        self.assertEqual((info["name"], info["runtime"], info["role"], info["parent"], info["turn"]),
+                         ("fix", "hc", "worker", "t0", 3))
+        self.assertEqual(info["native"]["status"], {"app": "claude-code", "state": "working"})
+        self.assertTrue(info["next"])
+        for row in info["next"]:
+            self.assertEqual(set(row), {"why", "do", "verb", "gap"})
+
+    def test_S11_status_command_prints_json_through_symlink(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hc = Path(tmp) / "hc"
+            hc.write_text("#!/bin/sh\necho '%s'\n" % json.dumps(raw("idle")))
+            hc.chmod(0o755)
+            done = subprocess.run([sys.executable, "-B", str(BIN), "status", "fix", "--runtime", "hc"],
+                                  env={"PATH": tmp + ":/usr/bin:/bin"}, capture_output=True, text=True,
+                                  stdin=subprocess.DEVNULL, timeout=15)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        info = json.loads(done.stdout)
+        self.assertEqual(set(info), STATUS_KEYS)
+        self.assertEqual(info["state"], "idle")
+
+    def test_S12_hc_states_map_to_contract_states(self):
+        cases = [({"app": "x", "state": "working"}, "live", "working"), ("working", "live", "working"),
+                 ("idle", "live", "idle"), ({"app": "x", "state": "done"}, "live", "done"),
+                 ("blocked", "live", "blocked"), ("error", "live", "unknown"), (None, "live", "unknown"),
+                 ({"state": "weird"}, "live", "unknown"), ("done", "finished", "exited"),
+                 (None, "finished", "exited")]
+        for status, state, expected in cases:
+            with self.subTest(status=status, state=state):
+                self.assertEqual(hc_status(raw(status, state=state))["state"], expected)
+
+    def test_S12_blocked_next_has_raw_hc_keys_gap_row(self):
+        rows = hc_status(raw("blocked"))["next"]
+        gaps = [r for r in rows if r["gap"]]
+        self.assertTrue(gaps)
+        self.assertTrue(all(r["verb"] is None for r in gaps))
+        self.assertTrue(any("hc keys" in r["do"] for r in gaps))
+        self.assertTrue(all(r["verb"] is not None for r in rows if not r["gap"]))
+
+    def test_S12_next_rows_lead_with_contract_verbs(self):
+        expect = {"done": "collect", "idle": "message", "working": "wait", "exited": "collect"}
+        for state, verb in expect.items():
+            status, term = ("done", "finished") if state == "exited" else (state, "live")
+            with self.subTest(state=state):
+                rows = hc_status(raw(status, state=term))["next"]
+                self.assertEqual(rows[0]["verb"], verb)
+
+    def test_S12_failing_hc_get_is_unknown_with_next(self):
+        with patch.object(app, "run_command", side_effect=RuntimeError("boom")):
+            info = app.status("hc", "fix", {"HC_TERMINAL_ID": "t0"})
+        self.assertEqual(info["state"], "unknown")
+        self.assertTrue(info["next"])
+
+    def test_S13_herdmates_missing_identity_never_calls_cli(self):
+        with patch.object(app, "run_command") as run:
+            info = app.status("herdmates", "w1:p1", {}, session="default")
+            run.assert_not_called()
+        self.assertEqual(info["state"], "unknown")
+        with patch.object(app, "run_command") as run:
+            with self.assertRaises(ValueError):
+                app.herdr_snapshot("w1:p1", "default", {})
+            run.assert_not_called()
+
+    def test_S13_herdmates_inspection_uses_explicit_session_and_no_mutation(self):
+        env = {"HERDR_ENV": "1", "HERDR_SOCKET_PATH": "/tmp/example.sock",
+               "HERDR_PANE_ID": "w1:p1", "HERDR_SESSION": "test"}
+        with patch.object(app, "run_command", return_value='{"result":{}}') as run:
+            app.herdr_snapshot("w1:p2", "test", env)
+            run.assert_called_once_with(["herdr", "pane", "get", "w1:p2", "--session", "test"])
+            with self.assertRaises(ValueError):
+                app.herdr_snapshot("w1:p2", "different", env)
+
+    def test_S13_herdmates_maps_agent_status(self):
+        env = {"HERDR_ENV": "1", "HERDR_SOCKET_PATH": "/tmp/example.sock", "HERDR_PANE_ID": "w1:p1"}
+        for herdr, expected in (("idle", "idle"), ("working", "working"), ("blocked", "blocked"),
+                                ("done", "done"), ("unknown", "unknown"), ("weird", "unknown")):
+            with self.subTest(herdr=herdr):
+                reply = json.dumps({"result": {"pane": {"agent_status": herdr}}})
+                with patch.object(app, "run_command", return_value=reply):
+                    info = app.status("herdmates", "w1:p2", env, session="test")
+                self.assertEqual(set(info), STATUS_KEYS)
+                self.assertEqual((info["runtime"], info["state"]), ("herdmates", expected))
+                self.assertTrue(info["next"])
+
+    def test_S14_native_status_is_unknown_pointing_to_return_value_or_sendmessage(self):
+        info = app.status("native", "helper", {})
+        self.assertEqual(set(info), STATUS_KEYS)
+        self.assertEqual(info["state"], "unknown")
+        text = " ".join(r["do"] for r in info["next"])
+        self.assertIn("return value", text)
+        self.assertIn("SendMessage", text)
+
+    def test_S15_hc_list_returns_one_status_per_child_of_caller(self):
+        world = {"a": raw("working", parent="t0", address="a"), "b": raw("idle", parent="t0", address="b"),
+                 "c": raw("idle", parent="t5", address="c"), "d": raw("idle", parent=None, address="d")}
+        for address, record in world.items():
+            record["name"] = "n" + address
+        with patch.object(app, "run_command", side_effect=hc_world(world)):
+            infos = app.list_children("hc", {"HC_TERMINAL_ID": "t0"})
+        self.assertEqual(sorted(i["name"] for i in infos), ["na", "nb"])
+        self.assertTrue(all(set(i) == STATUS_KEYS for i in infos))
+
+    def test_S15_list_command_prints_json_array(self):
+        world = {"a": raw("idle", parent="t0", address="a")}
+        buf = io.StringIO()
+        with patch.object(app, "run_command", side_effect=hc_world(world)), \
+                patch.dict(app.os.environ, {"HC_TERMINAL_ID": "t0"}, clear=True), redirect_stdout(buf):
+            self.assertEqual(app.main(["list", "--runtime", "hc"]), 0)
+        self.assertEqual(len(json.loads(buf.getvalue())), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -17,4 +17,4 @@ When you need something the verbs do not cover, run `agent-runtime help`. It lis
 - Else `HC_TERMINAL_ID` set: `hc`; role comes from `hc get` (parent null: lead, a plain id: worker). A failed, slow or malformed `hc get` gives `role=unknown`.
 - Else `native`.
 
-`status` and `list` arrive in a later command.
+`agent-runtime status <name>` prints one JSON record (`name, runtime, role, parent, state, turn, native, next[]`); `agent-runtime list` prints the records of your children (hc). Each `next` row is `{why, do, verb, gap}`; `gap: true` rows are raw commands outside the contract.

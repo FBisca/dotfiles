@@ -238,7 +238,7 @@ def metrics(samples):
 
 
 def resolve_runtime():
-    """Ask the agent-runtime skill which runtime this session runs in; never fail inspect."""
+    """Ask the agent-runtime CLI which runtime this session runs in; never fail inspect."""
     sibling = Path(__file__).resolve().parents[4] / "plugins" / "agent-runtime" / "server" / "agent_runtime.py"
     argv = [sys.executable, str(sibling)] if sibling.is_file() else ["agent-runtime"]
     try:

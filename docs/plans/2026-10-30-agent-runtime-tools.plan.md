@@ -86,7 +86,7 @@ Live
 
 ## Risks
 
-- **Security:** mutating tools refuse subagents by `agent_id` (S16); raw `hc` mutations are denied for every agent (S17), so the tools are the only route. Codex tool calls carry no subagent marker, so the Codex subagent rule relies on tool approval modes (`approve` prompts).
+- **Security:** mutating tools refuse subagents by `agent_id` (S16); raw `hc` mutations are denied for every agent (S17), so the tools are the only route. Codex tool calls carry no subagent marker and the mutating tools are pre-approved (`approval_mode = "approve"`, inferred from the Codex docs' example), so a Codex subagent could call them; misuse only misroutes reports, since raw `hc keys`/`kill` stay denied.
 - **Performance:** one `hc read` per idle/done/Codex-working status and per child in `list`, each with a 2 s timeout; tool descriptions ≤400 words.
 - **Migration:** the skill, contract text and SessionStart pointer are removed in the same branch that adds the tools; `~/bin/agent-runtime` stays for debugging; the living spec is rewritten at archive.
 - **Rollback:** disable the plugin and the Codex `[mcp_servers.agent-runtime]` entry, revert the branch; the zsh wrapper only adds a flag.

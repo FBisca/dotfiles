@@ -153,11 +153,11 @@ def record(runtime, name, state, role="unknown", parent=None, turn=None, native=
 
 def hc_state(raw):
     """Map an `hc get`/`hc ls` record (status is an object {app, state} or a string) to a contract state."""
-    if raw.get("state") == "finished":
-        return "exited"
     status = raw.get("status")
     if isinstance(status, dict):
         status = status.get("state")
+    if "exited" in (raw.get("state"), status) or "finished" in (raw.get("state"), status):
+        return "exited"
     return status if status in ("working", "idle", "blocked", "done") else "unknown"
 
 
@@ -273,15 +273,6 @@ def list_children(runtime, env):
             infos.append(hc_record(address, json.loads(run_command(["hc", "get", address, "--json"]))))
         except READ_ERRORS:
             continue
-    return infos
-    for entry in listing.get("terminals", []):
-        address = entry.get("address")
-        try:
-            raw = json.loads(run_command(["hc", "get", address, "--json"]))
-        except READ_ERRORS:
-            continue
-        if me and raw.get("parent") == me:
-            infos.append(hc_record(address, raw))
     return infos
 
 

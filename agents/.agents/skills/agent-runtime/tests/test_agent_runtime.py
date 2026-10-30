@@ -305,6 +305,13 @@ class StatusTests(unittest.TestCase):
             with self.subTest(status=status, state=state):
                 self.assertEqual(hc_status(raw(status, state=state))["state"], expected)
 
+    def test_S12_exited_or_finished_in_state_or_status_maps_to_exited(self):
+        cases = [("exited", "live"), ({"app": "x", "state": "exited"}, "live"), ("finished", "live"),
+                 ({"state": "finished"}, "live"), ("idle", "exited"), (None, "finished")]
+        for status, state in cases:
+            with self.subTest(status=status, state=state):
+                self.assertEqual(hc_status(raw(status, state=state))["state"], "exited")
+
     def test_S12_blocked_next_has_raw_hc_keys_gap_row(self):
         rows = hc_status(raw("blocked"))["next"]
         gaps = [r for r in rows if r["gap"]]
@@ -387,6 +394,15 @@ class StatusTests(unittest.TestCase):
         self.assertIn(["hc", "ls", "--all", "--json"], calls)
         self.assertEqual(sorted(c[2] for c in calls if c[1] == "get"), ["a", "b", "e"])
         self.assertTrue(all(set(i) == STATUS_KEYS for i in infos))
+
+    def test_S15_list_outside_hc_is_empty_with_stderr_note(self):
+        for runtime in ("herdmates", "native"):
+            out, err = io.StringIO(), io.StringIO()
+            with patch.dict(app.os.environ, {}, clear=True), redirect_stdout(out), \
+                    patch.object(app.sys, "stderr", err):
+                self.assertEqual(app.main(["list", "--runtime", runtime]), 0)
+            self.assertEqual(json.loads(out.getvalue()), [])
+            self.assertIn("only available under hc", err.getvalue())
 
     def test_S15_list_command_prints_json_array(self):
         world = {"a": raw("idle", parent="t0", address="a")}

@@ -10,7 +10,7 @@ The agent's own subagent tools; `status` has `native: {}`; its `next` rows point
 - `wait`: the Agent tool returns on finish; for background agents end your turn and let notifications arrive.
 - `collect`: the Agent result; verify files in the checkout.
 - `stop`: let it finish, or use the runtime's stop tool.
-- `status`/`list`: the runtime's agent list.
+- `status`/`list`: `list` returns `[]` with a stderr note (hc-only); use the runtime's agent list.
 
 ## Codex / MultiAgent V2
 

@@ -8,4 +8,4 @@ Herdmates hosts Claude's native team processes in Herdr panes (Claude only; Code
 - `wait`: end your turn; messages and task completions arrive as input.
 - `collect`: the teammate's final message and native task result; verify files in the checkout. Sidebar states are presentation only.
 - `stop`: ask Claude to shut the teammate down through its own handshake.
-- `status`/`list`: the native task list and roster, `native` holds `pane`, `session`, `agent_status` and a read-only note.
+- `status`/`list`: `list` returns `[]` with a stderr note (hc-only); use the native task list and roster, `native` holds `pane`, `session`, `agent_status` and a read-only note.

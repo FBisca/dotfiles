@@ -113,7 +113,7 @@ class PreToolUseTests(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertAllowed(command)
 
-    def test_internal_error_allows(self):
+    def test_S21_internal_error_allows(self):
         r = subprocess.run([sys.executable, "-B", str(HOOKS / "pre_tool_use.py")],
                            input="garbage", capture_output=True, text=True, timeout=20)
         self.assertEqual((r.returncode, r.stdout.strip()), (0, ""))
@@ -123,11 +123,11 @@ class WiringTests(unittest.TestCase):
     NEW = {"SessionStart": "session_start.py", "SubagentStart": "subagent_start.py",
            "PreToolUse": "pre_tool_use.py"}
 
-    def test_hook_scripts_executable(self):
+    def test_S16_hook_scripts_executable(self):
         for name in self.NEW.values():
             self.assertTrue(os.access(HOOKS / name, os.X_OK), name)
 
-    def test_settings_json_has_new_entries_pointing_at_existing_files(self):
+    def test_S16_settings_json_has_new_entries_pointing_at_existing_files(self):
         settings = json.loads((REPO / ".claude/settings.json").read_text())
         for event, script in self.NEW.items():
             commands = [h["command"] for g in settings["hooks"][event] for h in g["hooks"]]

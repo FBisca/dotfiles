@@ -9,7 +9,8 @@
   },
   "permissions": {
     "allow": [
-      "mcp__notion"
+      "mcp__notion",
+      "mcp__plugin_agent-runtime_agent-runtime"
     ]
   },
   "model": "opus",
@@ -76,7 +77,8 @@
   "enabledPlugins": {
     "dart@claude-code-lsps": true,
     "typescript-lsp@claude-plugins-official": true,
-    "hyperframes@hyperframes": false
+    "hyperframes@hyperframes": false,
+    "agent-runtime@dotfiles": true
   },
   "extraKnownMarketplaces": {
     "claude-code-lsps": {
@@ -95,6 +97,12 @@
       "source": {
         "source": "github",
         "repo": "heygen-com/hyperframes"
+      }
+    },
+    "dotfiles": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/fbisca/developer/dotfiles/agents"
       }
     }
   },

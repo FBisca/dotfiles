@@ -98,15 +98,19 @@ class PreToolUseTests(unittest.TestCase):
                         "if x; then hc send t7 x; fi", "for i in 1; do hc send t7 x; done",
                         "{ hc send t7 x; }", "! hc send t7 x", "timeout 5 hc send t7 x",
                         "timeout -s KILL 5 hc kill t7", "nice hc send t7 x", "nice -n 5 hc send t7 x",
-                        "xargs hc send", "echo t7 | xargs -n1 hc kill", "env A=1 hc send t7 x",
+                        "xargs hc send", "cd /repo\nhc send t7 \"done\"", "hc ls\nhc keys t7 enter",
+                        "echo a\n\nhc kill t7", "hc exec hc send t7 x", "hc exec -- hc kill t7",
+                        'eval "hc send t7 x"', "eval hc send t7 x", "stdbuf -oL hc send t7 x",
+                        "watch -n 5 hc send t7 x", "echo t7 | xargs -n1 hc kill", "env A=1 hc send t7 x",
                         'bash -lc "hc send t7 x"', 'sh -ec "hc send t7 x"', "bash -c 'cd x && hc kill t7'"):
             with self.subTest(command=command):
                 self.assertDenied(command, agent_id="a1")
 
     def test_S19_subagent_readonly_hc_allowed(self):
         for command in ("hc ls", "hc get t7", "hc --json read t9", "hc wait t7", "hc templates",
-                        "hc events", "hc file t7", "hc exec t7 ls", "hc schema", "hc --help",
-                        "hc -h", "hc --version", 'echo "hc send"',
+                        "hc events", "hc file t7", "hc exec ls", "hc exec echo hi", "hc schema", "hc --help",
+                        "hc -h", "hc --version", "hc keys --help", "hc send -h", "hc kill --help",
+                        'echo "a\nhc send t7 x"', 'git commit -m "x\nhc kill t7"', 'echo "hc send"',
                         "git commit -m 'hc send'", "grep 'hc kill' file", "ls",
                         'bash -lc "hc get t7"'):
             with self.subTest(command=command):
@@ -164,7 +168,7 @@ class WorkerGuardTests(unittest.TestCase):
         out = decision(r)
         self.assertIsNotNone(out, command)
         self.assertEqual(out["permissionDecision"], "deny")
-        self.assertIn("parent", out["permissionDecisionReason"])
+        self.assertRegex(out["permissionDecisionReason"], "parent|literal")
 
     def assertAllowed(self, command, **kw):
         r = self.call(command, **kw)
@@ -173,7 +177,9 @@ class WorkerGuardTests(unittest.TestCase):
     def test_S28_worker_destructive_calls_at_parent_denied(self):
         for command in ("hc keys t1 enter", "hc interrupt t1", "hc kill t1", "hc send --force t1 x",
                         "hc send t1 x --force", "hc --json keys t1 enter", "hc keys lead enter",
-                        "hc kill lead", "hc send --if idle --force lead x",
+                        "hc kill lead", "echo a\nhc keys t1 enter", "cd x\n\nhc kill t1",
+                        "hc keys $P enter", "hc kill `cat p`", 'hc send --force "$PARENT" x',
+                        "hc exec hc keys t1 enter", 'eval "hc keys t1 enter"', "hc send --if idle --force lead x",
                         "cd x && hc interrupt t1", 'bash -lc "hc keys t1 enter"'):
             with self.subTest(command=command):
                 self.assertDenied(command)
@@ -184,7 +190,7 @@ class WorkerGuardTests(unittest.TestCase):
 
     def test_S29_worker_sends_result_to_parent(self):
         for command in ("hc send t1 'done: all green'", "hc send lead 'done'",
-                        "hc send --if idle --wait t1 x", "hc get t1", "hc read t1", "hc ls"):
+                        "hc send --if idle --wait t1 x", 'echo "a\nhc keys t1 enter"', "hc get t1", "hc read t1", "hc ls"):
             with self.subTest(command=command):
                 self.assertAllowed(command)
 

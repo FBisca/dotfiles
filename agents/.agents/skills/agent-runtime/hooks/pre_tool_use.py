@@ -9,11 +9,12 @@ import sys
 
 HC_ALLOWED = {"get", "ls", "read", "wait", "templates", "events", "file", "exec", "schema"}
 HC_INFO_FLAGS = {"--help", "-h", "--version"}
-SEPARATORS = ";&|()"
+SEPARATORS = ";&|()\n"
 KEYWORDS = {"then", "do", "else", "elif", "if", "while", "until", "{", "!", "time", "builtin",
             "command", "exec", "nohup", "env", "sudo"}
 # wrapper -> options that consume a separate value; `positional` wrappers take one fixed arg
 VALUE_FLAGS = {"timeout": {"-s", "-k", "--signal", "--kill-after"}, "nice": {"-n", "--adjustment"},
+               "stdbuf": {"-i", "-o", "-e"}, "watch": {"-n", "--interval"},
                "xargs": {"-n", "-I", "-P", "-L", "-d", "-s", "-E", "-a"}, "env": {"-u", "-C"},
                "sudo": {"-u", "-g", "-C", "-h", "-p"}}
 HC_PARENT_SENSITIVE = {"keys", "interrupt", "kill"}
@@ -23,7 +24,8 @@ SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
 
 
 def segments(command):
-    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=SEPARATORS)
+    lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
     current = []
     for token in lexer:
@@ -51,7 +53,7 @@ def command_start(words):
             i += 1
             if word in ("env", "nohup", "sudo", "command", "exec", "time", "builtin"):
                 i = skip_options(words, i, word)
-        elif os.path.basename(word) in ("timeout", "nice", "xargs"):
+        elif os.path.basename(word) in ("timeout", "nice", "xargs", "stdbuf", "watch"):
             name = os.path.basename(word)
             i = skip_options(words, i + 1, name)
             if name == "timeout" and i < len(words):
@@ -79,6 +81,18 @@ def invocations(command, depth=0):
             continue
         program, args = os.path.basename(words[i]), words[i + 1:]
         yield program, args
+        if program == "eval" and depth < 3:
+            yield from invocations(" ".join(args), depth + 1)
+        if program == "hc" and depth < 3:
+            sub = hc_subcommand(args)
+            if sub == "exec":
+                argv = [a for a in args[args.index("exec") + 1:]]
+                while argv and argv[0].startswith("-") and argv[0] != "--":
+                    argv.pop(0)
+                if argv[:1] == ["--"]:
+                    argv.pop(0)
+                if argv:
+                    yield from invocations(shlex.join(argv), depth + 1)
         if program in SHELLS and depth < 3:
             for j, arg in enumerate(args):
                 if arg.startswith("-") and not arg.startswith("--") and "c" in arg and j + 1 < len(args):
@@ -94,6 +108,11 @@ def hc_subcommand(args):
         if not arg.startswith("-"):
             return arg
     return None
+
+
+def help_only(args, sub):
+    rest = args[args.index(sub) + 1:]
+    return bool(rest) and rest[0] in HC_INFO_FLAGS
 
 
 def sensitive_target(args):
@@ -130,6 +149,12 @@ def hc_get(terminal):
     return reply if isinstance(reply, dict) else None
 
 
+def is_worker():
+    own = os.environ.get("HC_TERMINAL_ID")
+    me = hc_get(own) if own else None
+    return bool(me) and isinstance(me.get("parent"), str) and bool(me["parent"])
+
+
 def targets_parent(target):
     """True when this hc worker's parent is the target (fails open when unresolvable)."""
     own = os.environ.get("HC_TERMINAL_ID")
@@ -154,7 +179,7 @@ def verdict(command, is_subagent):
             continue
         if is_subagent:
             sub = hc_subcommand(args)
-            if sub is not None and sub not in HC_ALLOWED:
+            if sub is not None and sub not in HC_ALLOWED and not help_only(args, sub):
                 return ("Subagents must not run 'hc %s': it could act on the lead's terminal. "
                         "Only read-only hc commands (%s) are allowed; report through your "
                         "return value or SendMessage." % (sub, ", ".join(sorted(HC_ALLOWED))))
@@ -163,6 +188,9 @@ def verdict(command, is_subagent):
             if target is not None:
                 sensitive.append(target)
     for target in sensitive:
+        if is_worker() and any(c in target for c in "$`"):
+            return ("Workers must give hc keys, interrupt, kill and send --force a literal target: "
+                    "the target must be a literal address or name, not a shell expansion.")
         if targets_parent(target):
             return ("Workers must not run keys, interrupt, kill or send --force at their parent: "
                     "it can answer the parent's dialog. Use 'hc send <parent> <result>' to report.")

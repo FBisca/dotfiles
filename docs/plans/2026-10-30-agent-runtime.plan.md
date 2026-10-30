@@ -35,7 +35,7 @@ Herdr.app (`hc`) nests child agents under their lead, mixes Claude and Codex wor
 | D7 | Move `orchestrate.py herdr` and its 2 tests into the herdmates adapter; `inspect` reports `agent-runtime resolve` | Add an `hc` subcommand next to `herdr` | Same DI reason | Q14 |
 | D8 | Codex hook inline in tracked `agents/.codex/config.toml` | `~/.codex/hooks.json` | That file is Herdr-managed and untracked | Q3 |
 | D9 | SubagentStart hook: subagents and in-process teammates get "no runtime commands; report via return value or SendMessage" | Rely on prose | They inherit the lead's `HC_TERMINAL_ID`; `hc send` would type into the lead | Q7 |
-| D10 | Narrow PreToolUse guard: deny `hc run/send/kill` from subagents, deny `herdmates teammux-launch` inside an agent | No guard; full raw-`hc` block | Covers the real hazard without blocking leads | Q8 |
+| D10 | PreToolUse guard: subagents may run only read-only hc subcommands (get, ls, read, wait, templates, events, file, exec, schema, --help); `herdmates teammux-launch` denied inside any agent; leads unrestricted | Deny-list of run/send/kill only | Review found `hc keys t7 enter` could answer the lead's permission dialog; allow-list follows D9 | Q8, T4 review |
 | D11 | hc spawn: Claude `claude --agent implementer "<task>"`; Codex `codex --no-daemon` with implementer.toml instructions in the first message | Templates first | Reuses existing definitions; templates can come later | Q9 |
 | D12 | New skill `agents/.agents/skills/agent-runtime/` (contract, adapters, Python stdlib script, unittest); `bin/bin/agent-runtime` symlink | Script in `bin/` only | One home serves Claude and Codex through the shared skill dir | Q11 |
 | D14 | All tickets land as commits on `feat/agent-runtime`, each gated; one PR at the end for Felippe to merge | PR and merge per ticket | Auto mode blocks unreviewed merges; one review is cheaper. Converge scope sees the whole branch, so scope is checked per ticket commit (`git show --stat`) | Session, orchestrate run |
@@ -107,11 +107,14 @@ Live
 | # | What it delivers | Satisfies | Blocked by | Paths | Owner | Status |
 |---|---|---|---|---|---|---|
 | T1 | Skill skeleton, resolver `resolve` with precedence, role and timeout, PATH symlink, tests | S1–S7 | none | agents/.agents/skills/agent-runtime/, bin/bin/agent-runtime | agent | COMPLETE (aac8da5; 16 tests OK; converge PASS; review: no blocking) |
-| T2 | Contract text, hc/herdmates/native adapters, `contract` and `help` commands, tests | S8–S10 | T1 | agents/.agents/skills/agent-runtime/ | agent | TO-DO |
+| T2 | Contract text, hc/herdmates/native adapters, `contract` and `help` commands, tests | S8–S10 | T1 | agents/.agents/skills/agent-runtime/ | agent | COMPLETE (90af113; 33 tests OK; converge PASS; review: no blocking) |
 | T3 | `status` and `list` with normalized state, `native`, `next`; herdmates mapping and its 2 tests moved in | S11–S15 | T2 | agents/.agents/skills/agent-runtime/ | agent | TO-DO |
-| T4 | Claude SessionStart pointer, SubagentStart notice, PreToolUse guard, hook tests | S16, S18–S21 | T1 | agents/.claude/settings.json, agents/.agents/skills/agent-runtime/ | agent | TO-DO |
-| T5 | Codex inline SessionStart hook in config.toml, staging only the `[hooks]` hunk | S17 | T1 | agents/.codex/config.toml | agent | TO-DO |
-| T6 | Trust the Codex hook in `/hooks` and confirm the pointer line appears | S17 | T5 | none | Felippe | TO-DO |
+| T4 | Claude SessionStart pointer, SubagentStart notice, PreToolUse guard, hook tests | S16, S18–S21 | T1 | agents/.claude/settings.json, agents/.agents/skills/agent-runtime/ | agent | COMPLETE (d2adba1, 94de45a; converge PASS; review: no blocking) |
+| T5 | Codex inline SessionStart hook in config.toml, staging only the `[hooks]` hunk | S17 | T1 | agents/.codex/config.toml | agent | COMPLETE (2c18281; converge PASS; review: no blocking) |
+| T6 | Trust the Codex hook in `/hooks` and confirm the pointer line appears | S17 | T12 | none | Felippe | TO-DO |
 | T7 | Rewrite orchestrate and implementer against the contract; remove `herdr` subcommand; `inspect` uses resolve; README Agent Tooling | S22, S23 | T3 | agents/.agents/skills/orchestrate/, agents/.claude/agents/implementer.md, agents/.codex/agents/implementer.toml, README.md | agent | TO-DO |
-| T8 | Live run: Claude and Codex workers through the hc adapter; fix adapter text found wrong | S24, S25 | T4, T7 | agents/.agents/skills/agent-runtime/ | agent | TO-DO |
+| T8 | Live run: Claude and Codex workers through the hc adapter (incl. an in-process teammate hitting the guard); fix adapter text found wrong | S24, S25 | T12 | agents/.agents/skills/agent-runtime/ | agent | TO-DO |
 | T9 | Check the Herdr.app sidebar during T8 | S26 | T8 | none | Felippe | TO-DO |
+| T10 | Guard hardening: subagent allow-list of read-only hc subcommands, options before the subcommand, shell keywords/wrappers (`then`, `{`, `timeout`, `xargs`, `-lc`), worker-thread allow test, notice text aligned with the contract | S19, S21 | T4 | agents/.agents/skills/agent-runtime/hooks/, agents/.agents/skills/agent-runtime/tests/test_hooks.py | agent | TO-DO |
+| T11 | Contract trim to ~500 words; trust-dialog keypress in-contract for spawn; hc `error` maps to `unknown` | S8, S9 | T2 | agents/.agents/skills/agent-runtime/references/, agents/.agents/skills/agent-runtime/adapters/, agents/.agents/skills/agent-runtime/tests/test_agent_runtime.py | agent | TO-DO |
+| T12 | Merge the PR, pull the live dotfiles checkout (resolve its uncommitted config.toml), restow `bin` so `~/bin/agent-runtime` exists | none | T7, T10, T11 | none | Felippe | TO-DO |

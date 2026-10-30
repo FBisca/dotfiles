@@ -38,7 +38,7 @@ Herdr.app (`hc`) nests child agents under their lead, mixes Claude and Codex wor
 | D10 | Narrow PreToolUse guard: deny `hc run/send/kill` from subagents, deny `herdmates teammux-launch` inside an agent | No guard; full raw-`hc` block | Covers the real hazard without blocking leads | Q8 |
 | D11 | hc spawn: Claude `claude --agent implementer "<task>"`; Codex `codex --no-daemon` with implementer.toml instructions in the first message | Templates first | Reuses existing definitions; templates can come later | Q9 |
 | D12 | New skill `agents/.agents/skills/agent-runtime/` (contract, adapters, Python stdlib script, unittest); `bin/bin/agent-runtime` symlink | Script in `bin/` only | One home serves Claude and Codex through the shared skill dir | Q11 |
-| D14 | All tickets land as commits on `feat/agent-runtime`, each gated; one PR at the end for Felippe to merge | PR and merge per ticket | Auto mode blocks unreviewed merges; one review is cheaper | Session, orchestrate run |
+| D14 | All tickets land as commits on `feat/agent-runtime`, each gated; one PR at the end for Felippe to merge | PR and merge per ticket | Auto mode blocks unreviewed merges; one review is cheaper. Converge scope sees the whole branch, so scope is checked per ticket commit (`git show --stat`) | Session, orchestrate run |
 | D13 | Never commit the literal Context7 key; the config.toml ticket stages only its `[hooks]` hunk | Revert to `$CONTEXT7_API_KEY` | Var is not exported, so revert breaks Codex context7 | Q1, session |
 
 ## Scenarios

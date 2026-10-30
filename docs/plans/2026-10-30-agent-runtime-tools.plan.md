@@ -41,6 +41,9 @@ Agents read the `agent-runtime` skill and contract text before every delegation,
 | D16 | `spawn(kind=lookup)` returns an error pointing to the CLI's own subagent tool | Server launches subagents | Subagents are native to each CLI | D15 of prior plan |
 | D17 | `~/bin/agent-runtime` CLI stays as a thin debug wrapper over the same library | Delete it | Humans and tests need a shell entry | Session |
 | D18 | Herdmates support stays minimal: worker-kind tools under herdmates/native return a gap error naming the native tool | Full herdmates adapter | Agent teams are off (prior D19) | Session |
+| D20 | `spawn` starts Claude workers with `--permission-mode auto` | Inherit the agent file's `default` mode | Workers otherwise stop on permission dialogs no tool can answer | T2–T5 review |
+| D21 | Leads' raw `hc keys` and `hc interrupt` get PreToolUse `ask` (the user approves each); subagents stay denied | Deny for everyone; a keys tool | A lead must be able to clear a worker's trust dialog, with a person in the loop | T2–T5 review |
+| D22 | Workers report with the `report` tool; the spawn report line says so and implementer definitions list the tool | `hc send <caller>` in the line | Raw `hc send` is denied for every agent (D15) | T2–T5 review |
 | D19 | One branch `feat/agent-runtime-tools`, one PR, each ticket a gated commit | PR per ticket | Prior D14 | Session |
 
 ## Scenarios

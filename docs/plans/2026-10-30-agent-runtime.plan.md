@@ -106,7 +106,7 @@ Live
 
 | # | What it delivers | Satisfies | Blocked by | Paths | Owner | Status |
 |---|---|---|---|---|---|---|
-| T1 | Skill skeleton, resolver `resolve` with precedence, role and timeout, PATH symlink, tests | S1–S7 | none | agents/.agents/skills/agent-runtime/, bin/bin/agent-runtime | agent | TO-DO |
+| T1 | Skill skeleton, resolver `resolve` with precedence, role and timeout, PATH symlink, tests | S1–S7 | none | agents/.agents/skills/agent-runtime/, bin/bin/agent-runtime | agent | COMPLETE (aac8da5; 16 tests OK; converge PASS; review: no blocking) |
 | T2 | Contract text, hc/herdmates/native adapters, `contract` and `help` commands, tests | S8–S10 | T1 | agents/.agents/skills/agent-runtime/ | agent | TO-DO |
 | T3 | `status` and `list` with normalized state, `native`, `next`; herdmates mapping and its 2 tests moved in | S11–S15 | T2 | agents/.agents/skills/agent-runtime/ | agent | TO-DO |
 | T4 | Claude SessionStart pointer, SubagentStart notice, PreToolUse guard, hook tests | S16, S18–S21 | T1 | agents/.claude/settings.json, agents/.agents/skills/agent-runtime/ | agent | TO-DO |

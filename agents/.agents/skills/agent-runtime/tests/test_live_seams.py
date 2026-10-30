@@ -9,7 +9,7 @@ from pathlib import Path
 from test_hooks import REPORT, run_hook
 
 SKILL = Path(__file__).resolve().parent.parent
-SCRIPT = SKILL / "scripts" / "agent-runtime.py"
+SCRIPT = SKILL.parents[2] / "plugins" / "agent-runtime" / "server" / "agent_runtime.py"
 SETTINGS = SKILL.parents[2] / ".claude" / "settings.json"
 
 

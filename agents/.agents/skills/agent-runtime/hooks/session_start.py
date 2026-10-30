@@ -6,7 +6,7 @@ import os
 import sys
 from pathlib import Path
 
-RESOLVER = Path(__file__).resolve().parent.parent / "scripts/agent-runtime.py"
+RESOLVER = Path(__file__).resolve().parents[4] / "plugins/agent-runtime/server/agent_runtime.py"
 
 
 def load_resolver():

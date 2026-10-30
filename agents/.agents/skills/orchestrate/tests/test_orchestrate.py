@@ -180,11 +180,12 @@ class ContextAndTransportTests(unittest.TestCase):
     def test_S23_inspect_includes_resolver_and_herdr_subcommand_is_gone(self):
         def cli(*argv):
             return subprocess.run([sys.executable, "-B", str(SCRIPT), *argv],
-                                  capture_output=True, text=True)
+                                  capture_output=True, text=True,
+                                  env={"PATH": os.environ["PATH"]})
         result = cli("inspect", "--checkout", str(SCRIPT.parents[5]))
         self.assertEqual(result.returncode, 0, result.stderr)
         info = json.loads(result.stdout)
-        self.assertIn("runtime", info["agent_runtime"])
+        self.assertEqual(info["agent_runtime"]["runtime"], "native")
         self.assertNotIn("herdr", info["executables"])
         self.assertNotEqual(cli("herdr", "--session", "x").returncode, 0)
         self.assertFalse(hasattr(app, "herdr_snapshot"))

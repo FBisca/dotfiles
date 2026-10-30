@@ -100,7 +100,7 @@ Routing and worker guard
 
 ## Risks
 
-- **Security:** PreToolUse guard (S19–S21) blocks subagents typing into the lead; peer `<hc>` messages are treated as reports, not user instructions (contract text); the Context7 key is never staged (D13).
+- **Security:** Codex PreToolUse payloads carry no subagent marker, so under Codex only the worker-to-parent rule (S31) is enforced; Codex subagents rely on the contract text. PreToolUse guard (S19–S21) blocks subagents typing into the lead; peer `<hc>` messages are treated as reports, not user instructions (contract text); the Context7 key is never staged (D13).
 - **Performance:** resolver runs at every session start; `hc get` capped at 2 s and failures exit 0 (S7).
 - **Migration:** `orchestrate.py herdr` removed; its tests move with the logic (S13, S23). Herdmates keeps working through its adapter.
 - **Rollback:** revert the branch; hooks are separate entries in `settings.json` and `config.toml`; an untrusted Codex hook is skipped, not fatal.

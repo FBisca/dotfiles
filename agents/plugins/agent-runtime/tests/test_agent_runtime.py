@@ -295,7 +295,7 @@ class StatusTests(unittest.TestCase):
         self.assertTrue(info["next"])
 
     def test_hc_error_state_maps_to_unknown(self):
-        """agent-runtime/R12"""
+        """agent-runtime/R12: hc error state maps to unknown."""
         self.assertEqual(hc_status(raw("error"))["state"], "unknown")
 
     def test_herdmates_missing_identity_never_calls_cli(self):

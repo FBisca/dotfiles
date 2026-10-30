@@ -168,6 +168,9 @@ class ContractTests(unittest.TestCase):
                 adapter = out[out.index(ADAPTER_MARKERS[runtime]):]
                 self.assertIn("`lookup`", adapter)
                 self.assertIn("`worker`", adapter)
+                self.assertIn("Agent tool", adapter)
+                mechanism = {"hc": "hc run --bg", "herdmates": "named native teammate", "native": "named teammate"}
+                self.assertIn(mechanism[runtime], adapter)
 
     def test_S8_contract_output_stays_within_600_words(self):
         for runtime in ADAPTER_MARKERS:
@@ -286,6 +289,13 @@ class StatusTests(unittest.TestCase):
             info = app.status("hc", "fix", {"HC_TERMINAL_ID": "t0"})
         self.assertEqual(info["state"], "unknown")
         self.assertTrue(info["next"])
+
+    def test_S12_hc_adapter_documents_error_as_unknown_and_blocked_gap_row(self):
+        text = (app.SKILL_DIR / "adapters" / "hc.md").read_text(encoding="utf-8")
+        self.assertIn("`error`", text)
+        self.assertIn("`unknown`", text)
+        self.assertIn("hc keys", text)
+        self.assertEqual(hc_status(raw("error"))["state"], "unknown")
 
     def test_S13_herdmates_missing_identity_never_calls_cli(self):
         with patch.object(app, "run_command") as run:

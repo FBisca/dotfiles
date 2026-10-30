@@ -102,7 +102,7 @@
     "dotfiles": {
       "source": {
         "source": "directory",
-        "path": "/Users/fbisca/developer/dotfiles/agents"
+        "path": "~/developer/dotfiles/agents"
       }
     }
   },

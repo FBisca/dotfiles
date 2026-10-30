@@ -84,6 +84,14 @@ claude() {
   fi
 }
 
+codex() {
+  if [[ -n "$HC_TERMINAL_ID" && " $* " != *" --no-daemon "* && " $* " != *" --daemon "* ]]; then
+    command codex --no-daemon "$@"
+  else
+    command codex "$@"
+  fi
+}
+
 # --- Claude Code / Ollama profiles ---
 # Vanilla Anthropic Claude Code remains:
 #   claude

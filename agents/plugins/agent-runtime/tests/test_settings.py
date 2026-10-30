@@ -25,12 +25,13 @@ class TrackedSettingsTests(unittest.TestCase):
     def test_S4_marketplace_path_is_home_relative_and_runtime_has_no_absolute_home(self):
         mk = self.settings["extraKnownMarketplaces"]["dotfiles"]["source"]
         self.assertEqual(mk, {"source": "directory", "path": "~/developer/dotfiles/agents"})
-        runtime = [json.dumps(mk)]
-        runtime += [json.dumps(k) for k in self.settings["enabledPlugins"] if "agent-runtime" in k]
+        runtime = [mk["path"]]
+        runtime += [k for k in self.settings["enabledPlugins"] if "agent-runtime" in k]
         runtime += [a for a in self.settings["permissions"]["allow"] if "agent-runtime" in a]
         for text in runtime:
-            self.assertNotIn("/Users/", text)
-            self.assertNotIn("/home/", text)
+            for bad in ("/Users/", "/home/", str(Path.home())):
+                self.assertNotIn(bad, text)
+            self.assertFalse(text.startswith("/"), text)
 
 
 if __name__ == "__main__":

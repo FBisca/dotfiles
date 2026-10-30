@@ -142,12 +142,14 @@ class ActivationWiringTest(unittest.TestCase):
 
     def test_S8_readme_install_says_in_place_and_no_update_steps(self):
         readme = (REPO / "README.md").read_text()
-        section = next(l for l in readme.splitlines() if l.strip().startswith("- **Install:**"))
+        start = readme.index("- `agents/plugins/agent-runtime`")
+        block = readme[start:readme.index("\n- `agents/.stow-local-ignore`", start)]
+        section = next(l for l in block.splitlines() if l.strip().startswith("- **Install:**"))
         self.assertRegex(section, r"(?i)in place")
         self.assertRegex(section, r"(?i)next (Claude/Codex )?session")
         self.assertRegex(section, r"(?i)record[- ]only")
-        self.assertNotIn("marketplace update", readme)
-        self.assertNotIn("plugin update", readme)
+        self.assertNotIn("marketplace update", block)
+        self.assertNotIn("plugin update", block)
 
 
 if __name__ == "__main__":

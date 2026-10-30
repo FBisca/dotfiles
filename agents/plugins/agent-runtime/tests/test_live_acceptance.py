@@ -101,10 +101,13 @@ class LiveMarketplaceRegistration(unittest.TestCase):
             (home / ".claude" / "settings.json").write_text(json.dumps(
                 {"extraKnownMarketplaces": {"dotfiles": tracked["extraKnownMarketplaces"]["dotfiles"]},
                  "enabledPlugins": {"agent-runtime@dotfiles": tracked["enabledPlugins"]["agent-runtime@dotfiles"]}}))
-            subprocess.run(["claude", "-p", "reply ok", "--max-turns", "1"], cwd=tmp, timeout=90,
+            run = subprocess.run(["claude", "-p", "reply ok", "--max-turns", "1"], cwd=tmp, timeout=90,
                            env=dict(os.environ, HOME=tmp), capture_output=True, text=True)
-            known = json.loads((home / ".claude" / "plugins" / "known_marketplaces.json").read_text())
-            self.assertEqual(known["dotfiles"]["installLocation"], f"{tmp}/developer/dotfiles/agents")
+            tail = f"claude rc={run.returncode} stdout={run.stdout[-500:]!r} stderr={run.stderr[-500:]!r}"
+            path = home / ".claude" / "plugins" / "known_marketplaces.json"
+            self.assertTrue(path.exists(), f"known_marketplaces.json missing; {tail}")
+            known = json.loads(path.read_text())
+            self.assertEqual(known.get("dotfiles", {}).get("installLocation"), f"{tmp}/developer/dotfiles/agents", tail)
 
 
 @unittest.skipUnless(os.environ.get("AGENT_RUNTIME_LIVE") == "1", "set AGENT_RUNTIME_LIVE=1 for the live run")

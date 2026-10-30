@@ -304,6 +304,59 @@ class FastReportTests(ToolCase):
             states = sorted(r[0] for r in db.execute("SELECT state FROM assignments"))
         self.assertEqual(states, ["failed", "working"])
 
+    def test_S1_respawn_of_a_finished_worker_after_a_fast_blocked_report_is_cleaned_up(self):
+        """agent-runtime/R72; agent-runtime/R69"""
+        self.start({"timeout": True, "get:w1": {"out": raw("w1", "t0")}}, ENV)
+        store = Store(self.env)
+        scope, generation = hc_tools.dispatch_identity(self.env)[:2]
+        team = store.team(scope, "t0", generation)
+        old = store.register(team, "w1")
+        store.bind(old["assignment_id"], "t5", scope)
+        store.publish(scope, "t5", "t0", old["assignment_id"], "done", "complete", caller_name="w1")
+        real_register, real_run = Store.register, hc_tools.run
+        seen = {}
+
+        def register(self_, team_, name, *rest, **more):
+            identity = real_register(self_, team_, name, *rest, **more)
+            seen.update(identity)
+            with self_.transaction() as db:
+                db.execute("INSERT INTO tasks VALUES ('t1',?,'s','in_progress',?,?,'[]')",
+                           (team_, identity["worker_id"], identity["assignment_id"]))
+            return identity
+
+        def run(argv, env_, ctx, timeout=10):
+            if argv[1] == "run":
+                store.publish(scope, "t9", "t0", seen["assignment_id"], "stuck", "blocked", caller_name="w1")
+                raise hc_tools.ToolError("hc run timed out")
+            return real_run(argv, env_, ctx, timeout)
+
+        with mock.patch.object(Store, "register", register), mock.patch.object(hc_tools, "run", run):
+            with self.assertRaises(hc_tools.ToolError):
+                hc_tools.spawn(ARGS, self.env, hc_tools.Context())
+        self.assertEqual([c[:2] for c in self.runs() if c[0] in ("kill", "rm")], [["kill", "w1"], ["rm", "w1"]])
+        with store.transaction() as db:
+            self.assertEqual([r[0] for r in db.execute("SELECT active FROM workers")], [0])
+            self.assertEqual(db.execute("SELECT state FROM assignments WHERE id=?", (seen["assignment_id"],)).fetchone()[0], "failed")
+            self.assertEqual(tuple(db.execute("SELECT status,owner,assignment FROM tasks").fetchone()), ("pending", None, None))
+        self.assertEqual(self.failed_count(store), 1)
+
+    def test_S2_a_store_error_in_the_orphan_check_keeps_the_original_error_and_still_fails(self):
+        """agent-runtime/R72"""
+        self.start({"timeout": True, "get:w1": {"out": raw("w1", "t0")}}, ENV)
+        real_run = hc_tools.run
+
+        def run(argv, env_, ctx, timeout=10):
+            if argv[1] == "run":
+                raise hc_tools.ToolError("hc run timed out")
+            return real_run(argv, env_, ctx, timeout)
+
+        with mock.patch.object(hc_tools, "run", run), \
+                mock.patch.object(Store, "started_by_other", side_effect=StoreError("db locked")):
+            with self.assertRaisesRegex(hc_tools.ToolError, "hc run timed out"):
+                hc_tools.spawn(ARGS, self.env, hc_tools.Context())
+        with Store(self.env).transaction() as db:
+            self.assertEqual([r[0] for r in db.execute("SELECT state FROM assignments")], ["failed"])
+
     def test_S2_a_completed_result_is_mentioned_when_hc_run_times_out(self):
         """agent-runtime/R72"""
         self.start({"timeout": True, "get:w1": {"out": raw("w1", "t0")}}, ENV)

@@ -282,8 +282,11 @@ def spawn(arguments, env, ctx):
         # Cancel/timeout may leave a terminal behind; a missing binary cannot.
         if store:
             mine = identity["assignment_id"]
-            orphan = not str(error).startswith("cannot run") and owned_orphan(
-                name, caller, env, earlier, lambda address: store.started_by_other(mine, address))
+            try:
+                orphan = not str(error).startswith("cannot run") and owned_orphan(
+                    name, caller, env, earlier, lambda address: store.started_by_other(mine, address))
+            except (dispatch.StoreError, sqlite3.Error):
+                orphan = False  # keep the original error; fail below still runs
             # Without an orphan the terminal is not removed (hc get failed, the worker exited, or another spawn owns
             # it), so a report that landed first stands until a later wait observes the exit.
             try:
@@ -291,7 +294,11 @@ def spawn(arguments, env, ctx):
             finally:
                 if orphan:
                     discard(name, env)
-            if store.assignment_state(mine) == "complete":
+            try:
+                landed = store.assignment_state(mine) == "complete"
+            except (dispatch.StoreError, sqlite3.Error):
+                landed = False
+            if landed:
                 raise ToolError("%s; the worker's result had already landed" % error)
         elif ctx.cancelled.is_set():
             discard(name, env)

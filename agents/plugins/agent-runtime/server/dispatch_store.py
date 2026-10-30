@@ -230,11 +230,13 @@ class Store:
             return row[0] if row else None
 
     def started_by_other(self, assignment, address):
-        """True when another live assignment of this worker already bound that terminal address."""
+        """True when that address is the worker's bound terminal and another live assignment is its current binder.
+
+        Every bind makes the binding assignment current, so a fast report of ours (current) is never "other"."""
         with self.transaction() as db:
             return bool(db.execute(
-                "SELECT 1 FROM assignments a JOIN workers w ON w.id=a.worker WHERE w.address=? AND a.id!=? "
-                "AND a.state NOT IN ('pending','failed') AND a.worker=(SELECT worker FROM assignments WHERE id=?)",
+                "SELECT 1 FROM assignments o JOIN workers w ON w.id=o.worker WHERE w.address=? AND o.current=1 "
+                "AND o.state!='failed' AND o.id!=? AND o.worker=(SELECT worker FROM assignments WHERE id=?)",
                 (address, assignment, assignment)).fetchone())
 
     def assignment_state(self, assignment):

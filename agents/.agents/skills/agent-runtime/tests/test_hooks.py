@@ -69,9 +69,9 @@ class SubagentStartTests(unittest.TestCase):
         out = json.loads(r.stdout)["hookSpecificOutput"]
         self.assertEqual(out["hookEventName"], "SubagentStart")
         ctx = out["additionalContext"]
-        self.assertIn("subagent", ctx)
-        self.assertIn("must not run runtime commands", ctx)
-        self.assertIn("SendMessage", ctx)
+        self.assertEqual(ctx, "Subagents and in-process teammates never run runtime commands (hc, "
+                              "herdmates, agent-runtime spawn/message/stop); report through your "
+                              "return value or SendMessage.")
 
 
 class PreToolUseTests(unittest.TestCase):
@@ -89,17 +89,26 @@ class PreToolUseTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0)
         self.assertEqual(r.stdout.strip(), "", command)
 
-    def test_S19_subagent_hc_run_send_kill_denied(self):
-        for command in ("hc run claude", "hc send t1 hi", "hc kill t1",
+    def test_S19_subagent_non_readonly_hc_denied(self):
+        for command in ("hc run claude", "hc send t1 hi", "hc kill t1", "hc keys t7 enter",
                         "cd x && hc send t1 hi", "echo a; hc kill t1", "echo a | hc run x",
                         "FOO=1 hc send t1 hi", "~/.local/bin/hc send t1 hi",
-                        "/Users/x/.local/bin/hc run c", "(hc kill t1)", "  hc   send t1 hi"):
+                        "/Users/x/.local/bin/hc run c", "(hc kill t1)", "  hc   send t1 hi",
+                        "hc --json send t7 x", "hc send t7 -h", "hc -x --json keys t7 enter",
+                        "if x; then hc send t7 x; fi", "for i in 1; do hc send t7 x; done",
+                        "{ hc send t7 x; }", "! hc send t7 x", "timeout 5 hc send t7 x",
+                        "timeout -s KILL 5 hc kill t7", "nice hc send t7 x", "nice -n 5 hc send t7 x",
+                        "xargs hc send", "echo t7 | xargs -n1 hc kill", "env A=1 hc send t7 x",
+                        'bash -lc "hc send t7 x"', 'sh -ec "hc send t7 x"', "bash -c 'cd x && hc kill t7'"):
             with self.subTest(command=command):
                 self.assertDenied(command, agent_id="a1")
 
-    def test_S19_subagent_other_commands_allowed(self):
-        for command in ("hc get t1", "hc ls", 'echo "hc send t1"', "git commit -m 'hc send'",
-                        "grep 'hc kill' file", "ls"):
+    def test_S19_subagent_readonly_hc_allowed(self):
+        for command in ("hc ls", "hc get t7", "hc --json read t9", "hc wait t7", "hc templates",
+                        "hc events", "hc file t7", "hc exec t7 ls", "hc schema", "hc --help",
+                        "hc -h", "hc --version", 'echo "hc send"',
+                        "git commit -m 'hc send'", "grep 'hc kill' file", "ls",
+                        'bash -lc "hc get t7"'):
             with self.subTest(command=command):
                 self.assertAllowed(command, agent_id="a1")
 
@@ -112,6 +121,9 @@ class PreToolUseTests(unittest.TestCase):
         for command in ("hc send t1 hi", "hc run claude", "hc kill t1"):
             with self.subTest(command=command):
                 self.assertAllowed(command)
+
+    def test_S21_agent_type_without_agent_id_is_a_lead(self):
+        self.assertAllowed("hc send t7 done", agent_type="implementer")
 
     def test_S21_internal_error_allows(self):
         r = subprocess.run([sys.executable, "-B", str(HOOKS / "pre_tool_use.py")],

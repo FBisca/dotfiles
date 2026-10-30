@@ -4,9 +4,8 @@
 import json
 import sys
 
-CONTEXT = ("You are a subagent or in-process teammate of a lead agent. You must not run runtime "
-           "commands (hc, herdmates): they act on the lead's terminal. Report through your return "
-           "value or SendMessage.")
+CONTEXT = ("Subagents and in-process teammates never run runtime commands (hc, herdmates, "
+           "agent-runtime spawn/message/stop); report through your return value or SendMessage.")
 
 
 def main():

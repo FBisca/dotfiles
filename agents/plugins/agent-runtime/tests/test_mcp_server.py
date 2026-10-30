@@ -80,12 +80,14 @@ class ToolListTests(ServerCase):
         self.assertLessEqual(words, 400)
 
     def test_ping_and_unknown_method(self):
+        """agent-runtime-tools/S1"""
         session = self.start()
         session.handshake()
         self.assertEqual(session.send("ping")["result"], {})
         self.assertEqual(session.send("nope")["error"]["code"], -32601)
 
     def test_stdout_carries_only_protocol_json(self):
+        """agent-runtime-tools/S1"""
         session = self.start()
         session.handshake()
         session.send("tools/list")
@@ -100,6 +102,7 @@ class ToolCallTests(ServerCase):
         return session.send("tools/call", {"name": name, "arguments": arguments})["result"]
 
     def test_status_wraps_the_library_with_a_fake_hc(self):
+        """agent-runtime-tools/S1"""
         raw = {"address": "t9", "name": "w1", "parent": "t0", "status": {"app": "x", "state": "idle"}}
         session = self.start("echo '%s'" % json.dumps(raw), env={"HC_TERMINAL_ID": "t0"})
         session.handshake()
@@ -109,6 +112,7 @@ class ToolCallTests(ServerCase):
         self.assertEqual((info["runtime"], info["state"], info["parent"]), ("hc", "idle", "t0"))
 
     def test_list_returns_children_of_the_caller(self):
+        """agent-runtime-tools/S1"""
         body = ('case "$1" in ls) echo \'{"terminals":[{"address":"t5","parent":"t0"},{"address":"t6","parent":"tX"}]}\';;'
                 ' get) echo \'{"address":"t5","name":"w5","parent":"t0","status":"working"}\';; esac')
         session = self.start(body, env={"HC_TERMINAL_ID": "t0"})
@@ -118,6 +122,7 @@ class ToolCallTests(ServerCase):
         self.assertEqual([r["name"] for r in rows], ["w5"])
 
     def test_unimplemented_tools_return_an_error_result(self):
+        """agent-runtime-tools/S1"""
         session = self.start()
         session.handshake()
         result = self.call(session, "spawn", {})
@@ -125,6 +130,7 @@ class ToolCallTests(ServerCase):
         self.assertIn("not implemented", result["content"][0]["text"])
 
     def test_unknown_tool_is_a_protocol_error(self):
+        """agent-runtime-tools/S1"""
         session = self.start()
         session.handshake()
         reply = session.send("tools/call", {"name": "bogus", "arguments": {}})

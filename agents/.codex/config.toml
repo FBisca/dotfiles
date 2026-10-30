@@ -51,6 +51,27 @@ args = ["-y", "hypha-mcp"]
 [mcp_servers.supabase]
 url = "http://localhost:54321/mcp"
 
+[mcp_servers.agent-runtime]
+command = "sh"
+args = ["-c", 'exec "$HOME/bin/agent-runtime-mcp"']
+env_vars = ["HC_TERMINAL_ID", "HC_SCOPE", "HC_TERMINAL_SOCKET", "HERDR_PANE_ID", "HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_SESSION"]
+default_tools_approval_mode = "auto"
+
+[mcp_servers.agent-runtime.tools.spawn]
+approval_mode = "approve"
+
+[mcp_servers.agent-runtime.tools.message]
+approval_mode = "approve"
+
+[mcp_servers.agent-runtime.tools.resume]
+approval_mode = "approve"
+
+[mcp_servers.agent-runtime.tools.stop]
+approval_mode = "approve"
+
+[mcp_servers.agent-runtime.tools.report]
+approval_mode = "approve"
+
 [marketplaces.openai-bundled]
 last_updated = "2026-05-27T20:55:59Z"
 source_type = "local"
@@ -76,19 +97,11 @@ enabled = true
 [notice.model_migrations]
 "gpt-5.4" = "gpt-5.5"
 
-[[hooks.SessionStart]]
-
-[[hooks.SessionStart.hooks]]
-type = "command"
-command = '"$HOME/.agents/skills/agent-runtime/hooks/session_start.py" --cli codex'
-timeout = 5
-statusMessage = "Resolving agent runtime"
-
 [[hooks.PreToolUse]]
 matcher = "^Bash$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = '"$HOME/.agents/skills/agent-runtime/hooks/pre_tool_use.py" --cli codex'
+command = '"$HOME/bin/agent-runtime-hook" --cli codex'
 timeout = 5
 statusMessage = "Checking hc command"

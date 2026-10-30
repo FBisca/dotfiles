@@ -88,6 +88,7 @@ Live
 Routing and worker guard
 - **S28** WHEN an hc worker runs `hc keys`, `hc interrupt`, `hc kill` or `hc send --force` aimed at its parent, THEN the PreToolUse guard denies it with a reason.
 - **S29** WHEN an hc worker runs `hc send <parent> "<result>"`, or any hc command aimed at its own child or a sibling, THEN it is allowed.
+- **S31** WHEN a Codex hc worker's Bash call runs `hc keys`, `hc interrupt`, `hc kill` or `hc send --force` aimed at its parent, THEN Codex's PreToolUse hook denies it.
 - **S30** WHEN `agent-runtime contract` runs for any runtime, THEN `spawn` lists kinds `lookup` and `worker`, `lookup` maps to that CLI's subagent tool, and the routing rule is printed.
 
 ## Out of scope
@@ -117,7 +118,7 @@ Routing and worker guard
 |---|---|---|---|---|---|---|
 | T1 | Skill skeleton, resolver `resolve` with precedence, role and timeout, PATH symlink, tests | S1–S7 | none | agents/.agents/skills/agent-runtime/, bin/bin/agent-runtime | agent | COMPLETE (aac8da5; 16 tests OK; converge PASS; review: no blocking) |
 | T2 | Contract text, hc/herdmates/native adapters, `contract` and `help` commands, tests | S8–S10 | T1 | agents/.agents/skills/agent-runtime/ | agent | COMPLETE (90af113; 33 tests OK; converge PASS; review: no blocking) |
-| T3 | `status` and `list` with normalized state, `native`, `next`; herdmates mapping and its 2 tests moved in | S11–S15 | T2 | agents/.agents/skills/agent-runtime/ | agent | TO-DO |
+| T3 | `status` and `list` with normalized state, `native`, `next`; herdmates mapping and its 2 tests moved in | S11–S15 | T2 | agents/.agents/skills/agent-runtime/ | agent | IN REVIEW (db70b0a; converge PASS) |
 | T4 | Claude SessionStart pointer, SubagentStart notice, PreToolUse guard, hook tests | S16, S18–S21 | T1 | agents/.claude/settings.json, agents/.agents/skills/agent-runtime/ | agent | COMPLETE (d2adba1, 94de45a; converge PASS; review: no blocking) |
 | T5 | Codex inline SessionStart hook in config.toml, staging only the `[hooks]` hunk | S17 | T1 | agents/.codex/config.toml | agent | COMPLETE (2c18281; converge PASS; review: no blocking) |
 | T6 | Trust the Codex hook in `/hooks` and confirm the pointer line appears | S17 | T12 | none | Felippe | TO-DO |
@@ -126,6 +127,7 @@ Routing and worker guard
 | T9 | Check the Herdr.app sidebar during T8 | S26 | T8 | none | Felippe | TO-DO |
 | T10 | Guard hardening: subagent allow-list of read-only hc subcommands, options before the subcommand, shell keywords/wrappers (`then`, `{`, `timeout`, `xargs`, `-lc`), worker-thread allow test, notice text aligned with the contract | S19, S21 | T4 | agents/.agents/skills/agent-runtime/hooks/, agents/.agents/skills/agent-runtime/tests/test_hooks.py | agent | IN REVIEW (5317749; converge PASS) |
 | T11 | Contract trim to ~500 words; trust-dialog keypress in-contract for spawn; hc `error` maps to `unknown` | S8, S9 | T2 | agents/.agents/skills/agent-runtime/references/, agents/.agents/skills/agent-runtime/adapters/, agents/.agents/skills/agent-runtime/tests/test_agent_runtime.py | agent | IN REVIEW (9b09ed1; converge PASS) |
-| T12 | Merge the PR, pull the live dotfiles checkout (resolve its uncommitted config.toml), restow `bin` so `~/bin/agent-runtime` exists | none | T7, T10, T11 | none | Felippe | TO-DO |
-| T11b | `spawn` kinds `lookup`/`worker` and the routing rule in contract, adapters and capabilities | S30 | T11 | agents/.agents/skills/agent-runtime/references/, agents/.agents/skills/agent-runtime/adapters/, agents/.agents/skills/agent-runtime/tests/test_agent_runtime.py | agent | TO-DO |
-| T13 | Worker-to-parent guard in pre_tool_use: resolve the caller's parent only when a parent-sensitive hc command appears | S28, S29 | T10 | agents/.agents/skills/agent-runtime/hooks/, agents/.agents/skills/agent-runtime/tests/test_hooks.py | agent | TO-DO |
+| T12 | Merge the PR, pull the live dotfiles checkout (resolve its uncommitted config.toml), restow `bin` so `~/bin/agent-runtime` exists | none | T7, T10, T11, T11b, T13, T14 | none | Felippe | TO-DO |
+| T11b | `spawn` kinds `lookup`/`worker` and the routing rule in contract, adapters and capabilities | S30 | T11 | agents/.agents/skills/agent-runtime/references/, agents/.agents/skills/agent-runtime/adapters/, agents/.agents/skills/agent-runtime/tests/test_agent_runtime.py | agent | IN REVIEW (e7566c0; converge PASS) |
+| T13 | Worker-to-parent guard in pre_tool_use: resolve the caller's parent only when a parent-sensitive hc command appears | S28, S29 | T10 | agents/.agents/skills/agent-runtime/hooks/, agents/.agents/skills/agent-runtime/tests/test_hooks.py | agent | IN REVIEW (3183a9a; converge PASS) |
+| T14 | Wire pre_tool_use into Codex's PreToolUse (Bash) in config.toml, adapting to Codex's payload; worker-to-parent rule applies to Codex workers | S31 | T13 | agents/.codex/config.toml, agents/.agents/skills/agent-runtime/hooks/, agents/.agents/skills/agent-runtime/tests/test_hooks.py | agent | TO-DO |

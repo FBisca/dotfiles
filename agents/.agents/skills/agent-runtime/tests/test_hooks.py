@@ -131,6 +131,80 @@ class PreToolUseTests(unittest.TestCase):
         self.assertEqual((r.returncode, r.stdout.strip()), (0, ""))
 
 
+class WorkerGuardTests(unittest.TestCase):
+    """An hc worker (no agent_id, HC_TERMINAL_ID set, non-null parent) vs its parent."""
+
+    TERMINALS = {"t9": {"address": "t9", "parent": "t1"}, "t1": {"address": "t1", "parent": None},
+                 "lead": {"address": "t1", "parent": None},
+                 "t12": {"address": "t12", "parent": "t9"}, "kid": {"address": "t12", "parent": "t9"},
+                 "t10": {"address": "t10", "parent": "t1"}, "sib": {"address": "t10", "parent": "t1"}}
+
+    def call(self, command, caller="t9", terminals=None, **extra):
+        terminals = self.TERMINALS if terminals is None else terminals
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            data.mkdir()
+            for name, reply in terminals.items():
+                (data / name.replace("/", "_")).write_text(json.dumps(reply))
+            fake = Path(tmp) / "bin" / "hc"
+            fake.parent.mkdir()
+            fake.write_text('#!/bin/sh\n[ "$1" = get ] || exit 2\n'
+                            'f="%s/$(echo "$2" | tr / _)"\n[ -f "$f" ] && cat "$f" || exit 1\n' % data)
+            fake.chmod(0o755)
+            env = {"PATH": "%s:/usr/bin:/bin" % fake.parent, "HOME": tmp}
+            if caller:
+                env["HC_TERMINAL_ID"] = caller
+            return subprocess.run([sys.executable, "-B", str(HOOKS / "pre_tool_use.py")],
+                                  input=json.dumps(bash(command, **extra)), capture_output=True,
+                                  text=True, env=env, timeout=20)
+
+    def assertDenied(self, command, **kw):
+        r = self.call(command, **kw)
+        self.assertEqual(r.returncode, 0)
+        out = decision(r)
+        self.assertIsNotNone(out, command)
+        self.assertEqual(out["permissionDecision"], "deny")
+        self.assertIn("parent", out["permissionDecisionReason"])
+
+    def assertAllowed(self, command, **kw):
+        r = self.call(command, **kw)
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, ""), command)
+
+    def test_S28_worker_destructive_calls_at_parent_denied(self):
+        for command in ("hc keys t1 enter", "hc interrupt t1", "hc kill t1", "hc send --force t1 x",
+                        "hc send t1 x --force", "hc --json keys t1 enter", "hc keys lead enter",
+                        "hc kill lead", "hc send --if idle --force lead x",
+                        "cd x && hc interrupt t1", 'bash -lc "hc keys t1 enter"'):
+            with self.subTest(command=command):
+                self.assertDenied(command)
+
+    def test_S28_literal_parent_address_denied_when_target_unresolvable(self):
+        terminals = {"t9": self.TERMINALS["t9"]}
+        self.assertDenied("hc keys t1 enter", terminals=terminals)
+
+    def test_S29_worker_sends_result_to_parent(self):
+        for command in ("hc send t1 'done: all green'", "hc send lead 'done'",
+                        "hc send --if idle --wait t1 x", "hc get t1", "hc read t1", "hc ls"):
+            with self.subTest(command=command):
+                self.assertAllowed(command)
+
+    def test_S29_worker_commands_at_child_or_sibling_allowed(self):
+        for command in ("hc keys t12 enter", "hc kill t12", "hc interrupt kid", "hc send --force t12 x",
+                        "hc keys t10 enter", "hc kill sib", "hc send --force sib x"):
+            with self.subTest(command=command):
+                self.assertAllowed(command)
+
+    def test_S29_fail_open_when_resolution_fails(self):
+        self.assertAllowed("hc keys ghost enter")
+        self.assertAllowed("hc keys t1 enter", terminals={})  # caller unreadable
+        self.assertAllowed("hc interrupt")  # no target
+
+    def test_S29_leads_and_non_hc_sessions_unrestricted(self):
+        self.assertAllowed("hc keys t9 enter", caller="t1")
+        self.assertAllowed("hc kill t1", caller=None)
+        self.assertAllowed("hc kill t1", agent_type="implementer", caller="t1")
+
+
 class WiringTests(unittest.TestCase):
     NEW = {"SessionStart": "session_start.py", "SubagentStart": "subagent_start.py",
            "PreToolUse": "pre_tool_use.py"}

@@ -4,6 +4,7 @@
 import json
 import os
 import shlex
+import subprocess
 import sys
 
 HC_ALLOWED = {"get", "ls", "read", "wait", "templates", "events", "file", "exec", "schema"}
@@ -15,6 +16,9 @@ KEYWORDS = {"then", "do", "else", "elif", "if", "while", "until", "{", "!", "tim
 VALUE_FLAGS = {"timeout": {"-s", "-k", "--signal", "--kill-after"}, "nice": {"-n", "--adjustment"},
                "xargs": {"-n", "-I", "-P", "-L", "-d", "-s", "-E", "-a"}, "env": {"-u", "-C"},
                "sudo": {"-u", "-g", "-C", "-h", "-p"}}
+HC_PARENT_SENSITIVE = {"keys", "interrupt", "kill"}
+HC_VALUE_OPTIONS = {"--if", "--timeout"}
+HC_TIMEOUT_SECONDS = 2
 SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
 
 
@@ -92,16 +96,76 @@ def hc_subcommand(args):
     return None
 
 
+def sensitive_target(args):
+    """Target of a parent-sensitive hc call (keys/interrupt/kill/send --force); None if not sensitive.
+
+    Returns "" when the call is sensitive but names no target."""
+    sub = hc_subcommand(args)
+    if sub is None:
+        return None
+    rest = args[args.index(sub) + 1:]
+    if sub == "send":
+        if "--force" not in rest and "--force" not in args:
+            return None
+    elif sub not in HC_PARENT_SENSITIVE:
+        return None
+    skip = False
+    for arg in rest:
+        if skip:
+            skip = False
+        elif arg in HC_VALUE_OPTIONS:
+            skip = True
+        elif not arg.startswith("-"):
+            return arg
+    return ""
+
+
+def hc_get(terminal):
+    try:
+        result = subprocess.run(["hc", "get", terminal], capture_output=True, text=True,
+                                stdin=subprocess.DEVNULL, timeout=HC_TIMEOUT_SECONDS)
+        reply = json.loads(result.stdout) if result.returncode == 0 else None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    return reply if isinstance(reply, dict) else None
+
+
+def targets_parent(target):
+    """True when this hc worker's parent is the target (fails open when unresolvable)."""
+    own = os.environ.get("HC_TERMINAL_ID")
+    if not own or not target:
+        return False
+    me = hc_get(own)
+    parent = me.get("parent") if me else None
+    if not isinstance(parent, str) or not parent:
+        return False
+    if target == parent:
+        return True
+    reply = hc_get(target)
+    return bool(reply) and reply.get("address") == parent
+
+
 def verdict(command, is_subagent):
+    sensitive = []
     for program, args in invocations(command):
         if program == "herdmates" and args[:1] == ["teammux-launch"]:
             return "herdmates teammux-launch is not allowed inside an agent session."
-        if is_subagent and program == "hc":
+        if program != "hc":
+            continue
+        if is_subagent:
             sub = hc_subcommand(args)
             if sub is not None and sub not in HC_ALLOWED:
                 return ("Subagents must not run 'hc %s': it could act on the lead's terminal. "
                         "Only read-only hc commands (%s) are allowed; report through your "
                         "return value or SendMessage." % (sub, ", ".join(sorted(HC_ALLOWED))))
+        else:
+            target = sensitive_target(args)
+            if target is not None:
+                sensitive.append(target)
+    for target in sensitive:
+        if targets_parent(target):
+            return ("Workers must not run keys, interrupt, kill or send --force at their parent: "
+                    "it can answer the parent's dialog. Use 'hc send <parent> <result>' to report.")
     return None
 
 

@@ -56,6 +56,7 @@ command = "sh"
 args = ["-c", 'exec "$HOME/bin/agent-runtime-mcp"']
 env_vars = ["HC_TERMINAL_ID", "HC_SCOPE", "HC_TERMINAL_SOCKET", "HERDR_PANE_ID", "HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_SESSION"]
 default_tools_approval_mode = "auto"
+tool_timeout_sec = 600
 
 [mcp_servers.agent-runtime.tools.spawn]
 approval_mode = "approve"

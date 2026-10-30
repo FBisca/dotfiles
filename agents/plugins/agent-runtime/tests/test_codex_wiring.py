@@ -23,6 +23,7 @@ class CodexConfigTest(unittest.TestCase):
         server = self.cfg["mcp_servers"]["agent-runtime"]
         self.assertEqual(server["env_vars"], ENV_VARS)
         self.assertEqual(server["default_tools_approval_mode"], "auto")
+        self.assertEqual(server["tool_timeout_sec"], 600)
         for tool in ["spawn", "message", "resume", "stop", "report"]:
             self.assertEqual(server["tools"][tool]["approval_mode"], "approve", tool)
         self.assertNotIn("wait", server["tools"])

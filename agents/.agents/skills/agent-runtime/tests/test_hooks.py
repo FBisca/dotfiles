@@ -247,6 +247,14 @@ class CodexWorkerGuardTests(WorkerGuardTests):
         self.assertAllowed("hc keys t1 enter", caller="t1")  # lead
         self.assertAllowed("hc keys t1 enter", caller=None)
 
+    def test_S31_codex_fail_open_when_resolution_fails(self):
+        self.assertAllowed("hc keys ghost enter")
+        self.assertAllowed("hc keys t1 enter", terminals={})  # caller unreadable
+        self.assertAllowed("hc interrupt")  # no target
+
+    def test_S31_codex_literal_parent_denied_when_target_unresolvable(self):
+        self.assertDenied("hc keys t1 enter", terminals={"t9": self.TERMINALS["t9"]})
+
     def test_S31_codex_non_bash_tools_ignored(self):
         payload = codex_bash("hc keys t1 enter")
         payload["tool_name"] = "apply_patch"
@@ -291,9 +299,13 @@ class WiringTests(unittest.TestCase):
         pre = [g for g in settings["hooks"]["PreToolUse"]
                if any("agent-runtime" in h["command"] for h in g["hooks"])]
         self.assertEqual(pre[0]["matcher"], "Bash")
-        # existing hooks untouched
-        existing = [h["command"] for g in settings["hooks"]["SessionStart"] for h in g["hooks"]]
-        self.assertIn("/Users/fbisca/developer/agent-fleet/hooks/session_start.py", existing)
+        # pre-existing entries are still present (by command substring; files need not exist here)
+        others = [h["command"] for event in ("SessionStart", "SessionEnd", "PreCompact", "UserPromptSubmit")
+                  for g in settings["hooks"][event] for h in g["hooks"]
+                  if "agent-runtime" not in h["command"]]
+        self.assertGreaterEqual(len(others), 5)
+        self.assertTrue(any("herdr-agent-state" in c for c in others))
+        self.assertTrue(any("session_start.py" in c for c in others))
 
     def test_S17_codex_config_has_session_start_hook(self):
         try:

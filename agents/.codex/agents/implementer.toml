@@ -32,7 +32,9 @@ Communication:
 - Use the native messaging tools actually available. If unavailable, return the message to the orchestrator for relay. Do not invent cross-session discovery or write runtime mailbox files.
 - Make routine implementation choices within scope. Escalate scope conflicts to the orchestrator, not the end user.
 - Avoid broadcasts, repeated status reports, and raw logs unless needed as evidence.
-- Do not start another Codex process or resume this live thread in another process to make it visible in Herdr. The orchestrator owns execution and presentation.
+- As a worker, report through the contract's report verb; the agent-runtime skill resolves it for your runtime.
+- As a subagent, run no runtime commands except read-only ones; report by return value.
+- Start no other agents unless the task assigns it. Do not resume this live thread in another process; the orchestrator owns execution and presentation.
 
 Editing and verification:
 - Use targeted edits. Do not change unrelated formatting or behavior.

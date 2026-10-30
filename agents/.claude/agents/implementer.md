@@ -37,7 +37,9 @@ When context pressure threatens completion, send a checkpoint at a safe boundary
 - Report to the orchestrator. Ask focused questions when missing information prevents correct work.
 - Message only assigned peers for interface questions, relevant changes, blockers, and results. Include the task ID, repository, revision, and requested action.
 - Use available native messaging. If unavailable, return the message to the orchestrator for relay. Do not write native mailbox or team files.
-- As a teammate, use native task state and messaging. Herdmates owns the Herdr pane; do not create a second agent or change the lead's terminal layout.
+- As a worker, report through the contract's `report` verb; the `agent-runtime` skill resolves it for your runtime.
+- As a subagent or in-process teammate, run no runtime commands except read-only ones; report by return value or SendMessage.
+- Start no other agents unless the task assigns it.
 - Make routine implementation choices within scope. Escalate scope conflicts to the orchestrator, not the end user.
 - Avoid broadcasts, repeated status reports, and raw logs unless needed as evidence.
 

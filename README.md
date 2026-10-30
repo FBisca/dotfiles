@@ -108,6 +108,7 @@ Shared agent configuration is also tracked for local CLI tools:
 - `agents/.claude` stores shared Claude Code settings plus custom agents and commands.
 - `agents/.codex` stores shared Codex defaults and command rules. Sensitive MCP credentials stay in local overrides.
 - `agents/.agents` stores every skill: `~/.agents/skills` (Codex) and `~/.claude/skills` (Claude Code) are both one link to `agents/.agents/skills`, so no agent keeps its own copy. Skills installed with `npx skills add -g` land here too and show up as git changes.
+- `agents/.agents/skills/agent-runtime` is the runtime contract for delegating to other agents (spawn, message, report, wait, collect, stop, status, list). Run `agent-runtime contract` for the verbs of the current runtime; hooks keep subagents and workers off commands that would reach their lead.
 - `agents/.stow-local-ignore` lists what Stow skips in this package (Stow reads ignore files per package, not from the repo root).
 
 Install everything with `stow agents` or let `./install.sh` treat it like any other module.

@@ -116,7 +116,7 @@ class NativeChildGuardTests(unittest.TestCase):
     def test_S7_stdin_that_is_not_json_emits_no_decision_and_exits_zero(self):
         """agent-runtime-followups/S7"""
         for extra in ((), ("--cli", "codex")):
-            for raw in ("not json", "", "{"):
+            for raw in ("not json", "", "{", "[]", "null", "42"):
                 done = subprocess.run([sys.executable, "-B", str(PRE), *extra], input=raw,
                                       capture_output=True, text=True, timeout=20)
                 self.assertEqual((done.returncode, done.stdout.strip()), (0, ""), (extra, raw))

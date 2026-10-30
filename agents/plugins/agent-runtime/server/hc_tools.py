@@ -11,7 +11,6 @@ import time
 import agent_runtime as lib
 
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
-PROMPT_MARKS = ("❯", "›")
 COLLECT_LINES = 200
 HISTORY_LINES = 1000
 SHORT_SECONDS = 30
@@ -244,21 +243,18 @@ def wait(arguments, env, ctx):
     return result({"wait": news, "workers": workers})
 
 
-def after_last_prompt(text):
-    lines = text.splitlines()
-    for index in range(len(lines) - 1, -1, -1):
-        stripped = lines[index].lstrip()
-        if stripped[:1] in PROMPT_MARKS and stripped[1:].strip():
-            lines = lines[index + 1:]
-            break
-    return "\n".join(lines[-COLLECT_LINES:])
-
-
 def collect(arguments, env, ctx):
     (name,) = need(arguments, "name")
     worker_name(name)
     require_hc(env)
-    return result(after_last_prompt(hc(["read", name, "--lines", str(HISTORY_LINES)], env, ctx)))
+    try:
+        app = lib.hc_app(json.loads(hc(["get", name, "--json"], env, ctx)))
+    except ValueError:
+        app = None
+    screen = hc(["read", name, "--lines", str(HISTORY_LINES)], env, ctx)
+    block = lib.last_prompt_block(screen, app) if app else []
+    lines = block or screen.splitlines()  # unknown CLI or no task prompt: the whole screen
+    return result("\n".join(lines[-COLLECT_LINES:]))
 
 
 def stop(arguments, env, ctx):

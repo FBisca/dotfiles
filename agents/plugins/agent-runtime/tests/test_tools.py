@@ -28,8 +28,12 @@ sys.exit(reply.get("rc", 0))
 TOML = 'name = "implementer"\ndeveloper_instructions = """\nCODEX IMPLEMENTER RULES\n"""\n'
 
 
-def raw(name, parent, state="idle"):
-    return json.dumps({"address": "t9", "name": name, "parent": parent, "status": state})
+def raw(name, parent, state="idle", app=None):
+    status = {"app": app, "state": state} if app else state
+    return json.dumps({"address": "t9", "name": name, "parent": parent, "status": status})
+
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
 class ToolCase(unittest.TestCase):
@@ -222,7 +226,7 @@ class WaitCollectStopReportTests(ToolCase):
     def test_S6_collect_returns_text_after_last_prompt_line_bounded(self):
         """agent-runtime-tools/S6"""
         body = ["old output", "❯ first task", "old answer", "› do the thing"] + ["line %d" % i for i in range(300)] + ["❯ "]
-        session = self.start({"read": {"out": "\n".join(body)}})
+        session = self.start({"read": {"out": "\n".join(body)}, "get:w1": {"out": raw("w1", "t0", app="claude-code")}})
         result, text = self.call(session, "collect", {"name": "w1"})
         self.assertFalse(result["isError"])
         self.assertNotIn("old answer", text)
@@ -231,9 +235,18 @@ class WaitCollectStopReportTests(ToolCase):
         self.assertIn("line 299", text)
         self.assertTrue(self.runs("read")[0][:2] == ["read", "w1"])
 
+    def test_S6_collect_on_codex_skips_the_composer_and_footer(self):
+        """agent-runtime-tools/S6"""
+        screen = (FIXTURES / "codex_working_interrupted.txt").read_text()
+        session = self.start({"read": {"out": screen}, "get:w1": {"out": raw("w1", "t0", app="codex")}})
+        _, text = self.call(session, "collect", {"name": "w1"})
+        self.assertIn("Running npm run build", text)
+        self.assertNotIn("Ask Codex to do anything", text)
+        self.assertNotIn("gpt-5", text)
+
     def test_S6_collect_without_prompt_returns_whole_screen(self):
         """agent-runtime-tools/S6"""
-        session = self.start({"read": {"out": "a\nb"}})
+        session = self.start({"read": {"out": "a\nb"}, "get:w1": {"out": raw("w1", "t0")}})
         _, text = self.call(session, "collect", {"name": "w1"})
         self.assertEqual(text, "a\nb")
 

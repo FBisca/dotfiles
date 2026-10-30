@@ -40,7 +40,8 @@ TOOLS = [
     ("resume", "Give a finished, idle or interrupted worker another assignment; returns promptly. A new spawn is not resumption.",
      schema({"name": text("worker name"), "task": text("what to do next")}, ["name", "task"])),
     ("wait", "Block until children report, need attention or time out (max 590s); use one wait(all) per work period. "
-             "Returns reports, assignment states and a receipt: pass it on your next call.",
+             "Returns reports, assignment states and a receipt: pass it on your next call. With no workers left, "
+             "use target=inbox to block on peer messages.",
      schema({"target": text("any, all, worker name/ID, or inbox"),
              "timeout": {"type": "integer", "description": "seconds, default 170, max 590; dispatch allows 0"},
              "receipt": text("acknowledge previous batch")}, ["target"])),

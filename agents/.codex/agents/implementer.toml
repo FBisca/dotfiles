@@ -32,7 +32,7 @@ Communication:
 - Use agent-runtime `message` for peers; read your inbox with wait(target=inbox, timeout=0) at task boundaries. When the lead assigns a task_id, use `task` claim/update. If unavailable, return the message to the orchestrator for relay. Do not invent cross-session discovery or write runtime mailbox files.
 - Make routine implementation choices within scope. Escalate scope conflicts to the orchestrator, not the end user.
 - Avoid broadcasts, repeated status reports, and raw logs unless needed as evidence.
-- As a worker, send your Return block to your parent with the report tool (server agent-runtime) as report(kind, assignment_id): kind is progress, complete, blocked or decision, and assignment_id comes from your task. A final message alone never reaches the parent. Peer messages arrive in tool results; read them there and pass back any `receipt`.
+- As a worker, send your Return block to your parent with the report tool (server agent-runtime) as report(kind, assignment_id): kind is progress, complete, blocked or decision, and assignment_id comes from your task. A final message alone never reaches the parent. Peer messages arrive in `wait` and mutating-tool results (status/list/collect/task list return them only with a `receipt`); pass back any `receipt`.
 - As a subagent, run no runtime commands except read-only ones; report by return value.
 - Do not resume this live thread in another process; the orchestrator owns execution and presentation.
 

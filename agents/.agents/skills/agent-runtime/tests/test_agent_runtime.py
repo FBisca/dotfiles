@@ -157,6 +157,18 @@ class ContractTests(unittest.TestCase):
                     if other != runtime:
                         self.assertNotIn(other_marker, out)
 
+    def test_S30_contract_spawn_has_lookup_and_worker_kinds_and_routing_rule(self):
+        for runtime in ADAPTER_MARKERS:
+            with self.subTest(runtime=runtime):
+                _, out = run_main("contract", "--runtime", runtime)
+                self.assertIn("`spawn(kind, role, task, cwd)`", out)
+                self.assertIn("`lookup`", out)
+                self.assertIn("`worker`", out)
+                self.assertIn("Routing rule", out)
+                adapter = out[out.index(ADAPTER_MARKERS[runtime]):]
+                self.assertIn("`lookup`", adapter)
+                self.assertIn("`worker`", adapter)
+
     def test_S8_contract_output_stays_within_600_words(self):
         for runtime in ADAPTER_MARKERS:
             with self.subTest(runtime=runtime):

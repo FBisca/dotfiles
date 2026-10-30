@@ -2,13 +2,17 @@
 
 Delegate only through these verbs; the adapter below maps them to this runtime. Skills never name a runtime.
 
-- `spawn(role, task, cwd)`: start one named worker (`implementer`, `reviewer`) on one task in one checkout. Put the whole task in the call. Result: the worker's name and proof the task was delivered.
+- `spawn(kind, role, task, cwd)`: start one agent (`implementer`, `reviewer`) on one task in one checkout. Put the whole task in the call. `kind` is `lookup` or `worker`. Result: the agent's name (workers) and proof the task was delivered.
 - `message(to, text)`: send text to a worker. Result: delivered, or a clear refusal. Never resend blindly; check first.
 - `report(text)`: a worker sends its result or blocker to its parent when done or stuck. Long output goes in a file; send the path.
 - `wait(any|all|name)`: block until the next child's news, no child working, or the named worker stops. Never sleep or poll. A wake-up is not completion; read the result, wait again if needed.
 - `collect(name)`: read the worker's actual result and result files. Never infer success.
 - `stop(name)`: end a worker you started, after its work is accepted.
 - `status(name)`, `list()`: return `{name, runtime, role, parent, state, turn, native, next[]}`. `state` is working|idle|blocked|done|exited|unknown. `blocked` means a person is needed: read the screen, ask the user, never force input past a dialog. `native: true` means use the runtime's own tools. `next[]` lists valid commands now.
+
+## Routing rule
+
+Use `lookup` for short read-only work whose answer you need back in context (cheap, structured result). Use `worker` for implementation, long tasks, Codex, and anything the user should watch or steer. When unsure, prefer `worker` under hc.
 
 ## Gap rule
 

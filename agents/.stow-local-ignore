@@ -3,3 +3,5 @@
 ^/\.codex/auth\.json
 ^/\.codex/config\.local\.toml
 ^/\.claude/chrome/chrome-native-host
+^/plugins
+^/\.claude-plugin

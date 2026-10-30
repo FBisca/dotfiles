@@ -5,10 +5,16 @@ description: Runtime contract for delegating to other agents: resolve the runtim
 
 # Agent runtime
 
-Run `agent-runtime resolve [--cli claude|codex] [--json]` before delegating. It prints one line, `runtime=<herdmates|hc|native> role=<lead|worker|unknown> [parent=<id>] cli=<claude|codex>`, and always exits 0 (any error prints `runtime=native role=unknown`).
+**Output:** the contract verbs and the adapter of the runtime you run in.
 
-- `HERDR_PANE_ID` set: `herdmates` (role `unknown`: teammate panes are not distinguishable yet) for Claude, `native` for Codex.
-- Else `HC_TERMINAL_ID` set: `hc`; `role` comes from `hc get` (parent null: lead, a plain id: worker). A failed, slow or malformed `hc get` gives `role=unknown`.
+Before you spawn, message or wait on another agent, run `agent-runtime contract`. It prints the verbs, the gap rule and only the adapter for this runtime. Delegate through those verbs; never name `hc`, Herdmates or another runtime in the work you hand out.
+
+When you need something the verbs do not cover, run `agent-runtime help`. It lists the runtime's capabilities, each marked in-contract yes or no. For a no, propose the change in chat in one line and ask before the raw command.
+
+`agent-runtime resolve [--cli claude|codex] [--json]` prints one line, `runtime=<herdmates|hc|native> role=<lead|worker|unknown> [parent=<id>] cli=<claude|codex>`, and always exits 0 (any error prints `runtime=native role=unknown`).
+
+- `HERDR_PANE_ID` set: `herdmates` for Claude (role `unknown`: teammate panes are not distinguishable yet), `native` for Codex.
+- Else `HC_TERMINAL_ID` set: `hc`; role comes from `hc get` (parent null: lead, a plain id: worker). A failed, slow or malformed `hc get` gives `role=unknown`.
 - Else `native`.
 
-`contract`, `help` and `status` arrive in later commands.
+`status` and `list` arrive in a later command.

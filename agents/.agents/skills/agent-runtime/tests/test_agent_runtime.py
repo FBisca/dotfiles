@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "agent-runtime.py"
+BIN = Path(__file__).resolve().parents[5] / "bin" / "bin" / "agent-runtime"
 spec = importlib.util.spec_from_file_location("agent_runtime", SCRIPT)
 app = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(app)
@@ -71,7 +72,6 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(json.loads(buf.getvalue()), {"runtime": "native", "role": "lead", "cli": "codex"})
 
 
-BIN = Path(__file__).resolve().parents[5] / "bin" / "bin" / "agent-runtime"
 
 
 class CliTests(unittest.TestCase):
@@ -130,6 +130,60 @@ class CliTests(unittest.TestCase):
         self.assertEqual(self.run_cli("resolve", "--cli", "gemini"), "runtime=native role=unknown cli=claude")
         self.assertEqual(self.run_cli("resolve", "--bogus", "--cli", "codex"),
                          "runtime=native role=unknown cli=codex")
+
+
+ADAPTER_MARKERS = {"hc": "# Adapter: hc", "herdmates": "# Adapter: herdmates", "native": "# Adapter: native"}
+VERBS = ("spawn", "message", "report", "wait", "collect", "stop", "status", "list")
+
+
+def run_main(*argv, env=None):
+    buf = io.StringIO()
+    with patch.dict(app.os.environ, env or {}, clear=True), redirect_stdout(buf):
+        code = app.main(list(argv))
+    return code, buf.getvalue()
+
+
+class ContractTests(unittest.TestCase):
+    def test_S8_contract_prints_verbs_gap_rule_and_only_resolved_adapter(self):
+        for runtime, marker in ADAPTER_MARKERS.items():
+            with self.subTest(runtime=runtime):
+                code, out = run_main("contract", "--runtime", runtime)
+                self.assertEqual(code, 0)
+                for verb in VERBS:
+                    self.assertIn("`%s(" % verb, out)
+                self.assertIn("Gap rule", out)
+                self.assertIn(marker, out)
+                for other, other_marker in ADAPTER_MARKERS.items():
+                    if other != runtime:
+                        self.assertNotIn(other_marker, out)
+
+    def test_S8_contract_resolves_runtime_from_env_through_symlink(self):
+        done = subprocess.run([sys.executable, "-B", str(BIN), "contract", "--cli", "codex"],
+                              env={"HERDR_PANE_ID": "p1", "PATH": "/usr/bin:/bin"},
+                              capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=15)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn(ADAPTER_MARKERS["native"], done.stdout)
+        self.assertNotIn(ADAPTER_MARKERS["herdmates"], done.stdout)
+
+    def test_S9_help_lists_capabilities_marked_in_contract_yes_or_no(self):
+        for runtime in ADAPTER_MARKERS:
+            with self.subTest(runtime=runtime):
+                code, out = run_main("help", "--runtime", runtime)
+                self.assertEqual(code, 0)
+                rows = [l for l in out.splitlines() if "in-contract:" in l]
+                self.assertTrue(rows)
+                self.assertTrue(any("in-contract: yes" in l for l in rows))
+                self.assertTrue(any("in-contract: no" in l for l in rows))
+                self.assertTrue(all(("in-contract: yes" in l) or ("in-contract: no" in l) for l in rows))
+        _, out = run_main("help", "--runtime", "hc")
+        for name in ("--on", "hc events", "hc interrupt"):
+            self.assertIn(name, out)
+
+    def test_S10_help_gap_rule_says_propose_in_chat_and_ask_before_raw_command(self):
+        _, out = run_main("help", "--runtime", "hc")
+        self.assertIn("in-contract: no", out)
+        self.assertIn("propose the change in chat in one line", out)
+        self.assertIn("ask before the raw command", out)
 
 
 if __name__ == "__main__":

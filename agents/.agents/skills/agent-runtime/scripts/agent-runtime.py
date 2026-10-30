@@ -6,8 +6,11 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 HC_TIMEOUT_SECONDS = 2
+SKILL_DIR = Path(__file__).resolve().parent.parent
+RUNTIMES = ("herdmates", "hc", "native")
 FIELDS = ("runtime", "role", "parent", "cli")
 
 
@@ -52,6 +55,40 @@ def cmd_resolve(args):
     return 0
 
 
+def read_text(relative):
+    return (SKILL_DIR / relative).read_text(encoding="utf-8")
+
+
+def runtime_arg(args):
+    return args.runtime or resolve(os.environ, args.cli)["runtime"]
+
+
+def gap_rule():
+    text = read_text("references/contract.md")
+    start = text.index("## Gap rule")
+    end = text.find("\n## ", start + 1)
+    return text[start:end if end != -1 else len(text)].strip()
+
+
+def cmd_contract(args):
+    runtime = runtime_arg(args)
+    print(read_text("references/contract.md").rstrip())
+    print()
+    print(read_text("adapters/%s.md" % runtime).rstrip())
+    return 0
+
+
+def cmd_help(args):
+    runtime = runtime_arg(args)
+    rows = json.loads(read_text("adapters/capabilities.json"))[runtime]
+    print("Capabilities of runtime %s:" % runtime)
+    for row in rows:
+        print("- %s | in-contract: %s | %s" % (row["capability"], row["in_contract"], row["how"]))
+    print()
+    print(gap_rule())
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="agent-runtime", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -59,6 +96,12 @@ def build_parser():
     p.add_argument("--cli", choices=("claude", "codex"), default="claude")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_resolve)
+    for name, func, text in (("contract", cmd_contract, "print the verbs, gap rule and the resolved runtime's adapter"),
+                             ("help", cmd_help, "list the runtime's capabilities and whether each is in the contract")):
+        q = sub.add_parser(name, help=text)
+        q.add_argument("--cli", choices=("claude", "codex"), default="claude")
+        q.add_argument("--runtime", choices=RUNTIMES, help="override the resolved runtime")
+        q.set_defaults(func=func)
     return parser
 
 

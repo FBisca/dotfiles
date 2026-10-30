@@ -157,6 +157,12 @@ class ContractTests(unittest.TestCase):
                     if other != runtime:
                         self.assertNotIn(other_marker, out)
 
+    def test_S8_contract_output_stays_within_600_words(self):
+        for runtime in ADAPTER_MARKERS:
+            with self.subTest(runtime=runtime):
+                _, out = run_main("contract", "--runtime", runtime)
+                self.assertLessEqual(len(out.split()), 600)
+
     def test_S8_contract_resolves_runtime_from_env_through_symlink(self):
         done = subprocess.run([sys.executable, "-B", str(BIN), "contract", "--cli", "codex"],
                               env={"HERDR_PANE_ID": "p1", "PATH": "/usr/bin:/bin"},

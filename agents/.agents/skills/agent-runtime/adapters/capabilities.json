@@ -8,7 +8,8 @@
     {"capability": "templates", "in_contract": "no", "how": "hc templates; hc run <template> \"<task>\""},
     {"capability": "read, write or edit files on any machine", "in_contract": "no", "how": "hc file read|write|edit [--on <machine>] <path>"},
     {"capability": "short command with exact output, no terminal", "in_contract": "no", "how": "hc exec"},
-    {"capability": "send keystrokes (dialogs)", "in_contract": "no", "how": "hc keys <t> ..."},
+    {"capability": "answer a trust dialog when spawn's first_message.sent is false", "in_contract": "yes", "how": "spawn: hc keys <n> down enter"},
+    {"capability": "send other keystrokes", "in_contract": "no", "how": "hc keys <t> ..."},
     {"capability": "interrupt a turn without ending the process", "in_contract": "no", "how": "hc interrupt <t>"}
   ],
   "herdmates": [

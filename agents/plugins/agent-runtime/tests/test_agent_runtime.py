@@ -358,7 +358,7 @@ class StatusTests(unittest.TestCase):
                 self.assertEqual(hc_status(raw(status, state=state))["state"], "exited")
 
     def test_blocked_next_has_ask_the_user_gap_row(self):
-        """agent-runtime/R12"""
+        """agent-runtime/R12: blocked offers an ask-the-user gap row, not raw hc keys."""
         rows = hc_status(raw("blocked"))["next"]
         gaps = [r for r in rows if r["gap"]]
         self.assertTrue(gaps)

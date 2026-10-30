@@ -94,7 +94,7 @@ class RawHcTests(unittest.TestCase):
         """agent-runtime-tools/S17"""
         for command in ("FOO=1 hc send w hi", "timeout 5 hc kill w", "sudo -u x hc rm w", "ls; hc kill w",
                         "ls\nhc send w hi", "sh -c 'hc send w hi'", "bash -lc \"hc run x\"", "eval 'hc kill w'",
-                        "hc exec -- hc send w hi", "if true; then hc rm w; fi", "/usr/local/bin/hc interrupt w",
+                        "hc exec -- hc send w hi", "if true; then hc rm w; fi", "/usr/local/bin/hc rm w",
                         "env X=1 nohup hc send w hi", "true && (hc kill w)", "xargs -n1 hc rm"):
             self.assertTrue(denied(run(PRE, bash(command))), command)
 

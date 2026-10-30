@@ -4,6 +4,7 @@
 stdout carries protocol JSON only; diagnostics go to stderr.
 """
 
+import io
 import json
 import os
 import sys
@@ -12,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import agent_runtime as lib  # noqa: E402
 
 PROTOCOL_VERSION = "2025-06-18"
+SUPPORTED_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 SERVER_INFO = {"name": "agent-runtime", "version": "0.1.0"}
 
 
@@ -24,7 +26,9 @@ def text(description):
 
 
 TOOLS = [
-    ("spawn", "Start one worker agent on one task in one checkout; put the whole task in the call. "
+    ("spawn", "Start one agent on one task in one checkout; put the whole task in the call. "
+              "kind=lookup: short read-only work, use the CLI's own subagent tool instead. "
+              "kind=worker: implementation, long tasks, Codex, or anything watched. cli defaults to claude. "
               "Returns its name and parent.",
      schema({"kind": {"type": "string", "enum": ["worker", "lookup"]}, "cli": {"type": "string", "enum": ["claude", "codex"]},
              "name": text("unique, a-z 0-9 - _, max 32"), "task": text("complete task text"),
@@ -33,12 +37,13 @@ TOOLS = [
      schema({"to": text("worker name"), "text": text("message")}, ["to", "text"])),
     ("resume", "Give a finished, idle or interrupted worker another turn. A new spawn is not resumption.",
      schema({"name": text("worker name"), "task": text("what to do next")}, ["name", "task"])),
-    ("wait", "Block until the next child reports, none is working, or the named worker stops. Never poll.",
+    ("wait", "Block until the next child reports, none is working, or the named worker stops. Never poll. "
+             "Returns the status records of the workers it names.",
      schema({"target": text("any, all or a worker name")}, ["target"])),
     ("status", "State of one agent: {name, runtime, role, parent, state, turn, native, next[]}. "
                "state is working|idle|blocked|done|exited|unknown; blocked needs the user.",
      schema({"name": text("worker name or address")}, ["name"])),
-    ("list", "Status records of the agents you started.", schema()),
+    ("list", "Status records of the agents you started (hc only).", schema()),
     ("collect", "Read a worker's actual result from its screen after its last prompt. Never infer success.",
      schema({"name": text("worker name")}, ["name"])),
     ("stop", "End a worker you started, after its work is accepted.",
@@ -70,7 +75,10 @@ def call_status(arguments, env):
 
 
 def call_list(arguments, env):
-    return tool_result(lib.list_children(runtime_name(env), env))
+    runtime = runtime_name(env)
+    if runtime != "hc":
+        return tool_result("list is hc-only; use the runtime's own tools", True)
+    return tool_result(lib.list_children(runtime, env))
 
 
 IMPLEMENTED = {"status": call_status, "list": call_list}
@@ -92,15 +100,33 @@ def rpc_error(request_id, code, message):
 
 
 def handle(message, env):
-    """Reply dict for a request, None for a notification."""
-    if not isinstance(message, dict) or not isinstance(message.get("method"), str):
-        return rpc_error(message.get("id") if isinstance(message, dict) else None, -32600, "invalid request")
-    method, request_id = message["method"], message.get("id")
+    """Reply dict for a request, None for notifications and stray responses."""
+    if not isinstance(message, dict):
+        return rpc_error(None, -32600, "invalid request")
+    method, request_id = message.get("method"), message.get("id")
+    if not isinstance(method, str):
+        if "result" in message or "error" in message:
+            return None
+        return rpc_error(request_id, -32600, "invalid request")
     if "id" not in message:
         return None
-    params = message.get("params") or {}
+    params = message.get("params")
+    if params is None:
+        params = {}
+    if not isinstance(params, dict):
+        return rpc_error(request_id, -32602, "params must be an object")
+    try:
+        return dispatch(method, request_id, params, env)
+    except Exception as error:
+        log("%s failed: %s" % (method, error))
+        return rpc_error(request_id, -32603, "internal error")
+
+
+def dispatch(method, request_id, params, env):
     if method == "initialize":
-        result = {"protocolVersion": PROTOCOL_VERSION, "capabilities": {"tools": {}}, "serverInfo": SERVER_INFO}
+        asked = params.get("protocolVersion")
+        version = asked if asked in SUPPORTED_VERSIONS else PROTOCOL_VERSION
+        result = {"protocolVersion": version, "capabilities": {"tools": {}}, "serverInfo": SERVER_INFO}
     elif method == "ping":
         result = {}
     elif method == "tools/list":
@@ -116,7 +142,9 @@ def handle(message, env):
     return {"jsonrpc": "2.0", "id": request_id, "result": result}
 
 
-def serve(stdin=sys.stdin, stdout=sys.stdout, env=None):
+def serve(stdin=None, stdout=None, env=None):
+    stdin = stdin or io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8", errors="replace", newline=None)
+    stdout = stdout or sys.stdout
     env = dict(os.environ if env is None else env)
     for line in stdin:
         line = line.strip()

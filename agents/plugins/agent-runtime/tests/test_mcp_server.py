@@ -76,7 +76,10 @@ class ToolListTests(ServerCase):
         self.assertEqual([t["name"] for t in tools], TOOLS)
         for tool in tools:
             self.assertEqual(tool["inputSchema"]["type"], "object")
-        words = sum(len(t["description"].split()) for t in tools)
+        words = 0
+        for tool in tools:
+            words += len(tool["description"].split())
+            words += sum(len(p.get("description", "").split()) for p in tool["inputSchema"]["properties"].values())
         self.assertLessEqual(words, 400)
 
     def test_ping_and_unknown_method(self):
@@ -85,6 +88,27 @@ class ToolListTests(ServerCase):
         session.handshake()
         self.assertEqual(session.send("ping")["result"], {})
         self.assertEqual(session.send("nope")["error"]["code"], -32601)
+
+    def test_notification_gets_no_reply_and_eof_exits(self):
+        """agent-runtime-tools/S1"""
+        session = self.start()
+        session.handshake()
+        session.send("notifications/initialized", notify=True)
+        self.assertEqual(session.send("ping")["result"], {})
+        session.proc.stdin.close()
+        self.assertEqual(session.proc.wait(timeout=10), 0)
+        self.assertEqual(session.proc.stdout.read(), "")
+
+    def test_bad_params_and_stray_responses(self):
+        """agent-runtime-tools/S1"""
+        session = self.start()
+        session.handshake()
+        session.proc.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 99, "result": {}}) + "\n")
+        session.proc.stdin.flush()
+        reply = session.send("tools/call", [1])
+        self.assertEqual(reply["error"]["code"], -32602)
+        init = session.send("initialize", {"protocolVersion": "2025-03-26"})
+        self.assertEqual(init["result"]["protocolVersion"], "2025-03-26")
 
     def test_stdout_carries_only_protocol_json(self):
         """agent-runtime-tools/S1"""
@@ -120,6 +144,14 @@ class ToolCallTests(ServerCase):
         result = self.call(session, "list", {})
         rows = json.loads(result["content"][0]["text"])
         self.assertEqual([r["name"] for r in rows], ["w5"])
+
+    def test_list_outside_hc_is_an_error(self):
+        """agent-runtime-tools/S1"""
+        session = self.start()
+        session.handshake()
+        result = self.call(session, "list", {})
+        self.assertTrue(result["isError"])
+        self.assertIn("hc-only", result["content"][0]["text"])
 
     def test_unimplemented_tools_return_an_error_result(self):
         """agent-runtime-tools/S1"""

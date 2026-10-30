@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Agent runtime library and debug CLI (resolve, status, list). No model calls or agent spawns."""
+"""Agent runtime library and debug CLI (resolve, contract, help, status, list). No model calls or agent spawns."""
 
 import argparse
 import json
@@ -7,8 +7,11 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 HC_TIMEOUT_SECONDS = 2
+# Legacy contract text lives in the old skill until it is deleted.
+SKILL_DIR = Path(__file__).resolve().parents[3] / ".agents" / "skills" / "agent-runtime"
 RUNTIMES = ("herdmates", "hc", "native")
 FIELDS = ("runtime", "role", "parent", "cli")
 
@@ -280,8 +283,38 @@ def cmd_resolve(args):
     return 0
 
 
+def read_text(relative):
+    return (SKILL_DIR / relative).read_text(encoding="utf-8")
+
+
 def runtime_arg(args):
     return args.runtime or resolve(os.environ, args.cli)["runtime"]
+
+
+def gap_rule():
+    text = read_text("references/contract.md")
+    start = text.index("## Gap rule")
+    end = text.find("\n## ", start + 1)
+    return text[start:end if end != -1 else len(text)].strip()
+
+
+def cmd_contract(args):
+    runtime = runtime_arg(args)
+    print(read_text("references/contract.md").rstrip())
+    print()
+    print(read_text("adapters/%s.md" % runtime).rstrip())
+    return 0
+
+
+def cmd_help(args):
+    runtime = runtime_arg(args)
+    rows = json.loads(read_text("adapters/capabilities.json"))[runtime]
+    print("Capabilities of runtime %s:" % runtime)
+    for row in rows:
+        print("- %s | in-contract: %s | %s" % (row["capability"], row["in_contract"], row["how"]))
+    print()
+    print(gap_rule())
+    return 0
 
 
 def dump(value, args):
@@ -310,6 +343,13 @@ def build_parser():
                    help="default: detected from the environment, else claude")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_resolve)
+    for name, func, text in (("contract", cmd_contract, "print the verbs, gap rule and the resolved runtime's adapter"),
+                             ("help", cmd_help, "list the runtime's capabilities and whether each is in the contract")):
+        q = sub.add_parser(name, help=text)
+        q.add_argument("--cli", choices=("claude", "codex"), default=None,
+                   help="default: detected from the environment, else claude")
+        q.add_argument("--runtime", choices=RUNTIMES, help="override the resolved runtime")
+        q.set_defaults(func=func)
     p = sub.add_parser("status", help="one JSON record for one agent")
     p.add_argument("name", help="hc terminal name or address; Herdr pane ID under herdmates")
     p.add_argument("--session", help="exact Herdr session name (herdmates)")

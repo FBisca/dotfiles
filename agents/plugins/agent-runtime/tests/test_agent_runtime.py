@@ -152,6 +152,7 @@ class CliTests(unittest.TestCase):
                          "runtime=native role=unknown cli=codex")
 
 
+ADAPTER_MARKERS = {"hc": "# Adapter: hc", "herdmates": "# Adapter: herdmates", "native": "# Adapter: native"}
 VERBS = ("spawn", "message", "report", "wait", "collect", "stop", "status", "list")
 
 
@@ -160,6 +161,93 @@ def run_main(*argv, env=None):
     with patch.dict(app.os.environ, env or {}, clear=True), redirect_stdout(buf):
         code = app.main(list(argv))
     return code, buf.getvalue()
+
+
+class ContractTests(unittest.TestCase):
+    def test_contract_prints_verbs_gap_rule_and_only_resolved_adapter(self):
+        """agent-runtime/R8"""
+        for runtime, marker in ADAPTER_MARKERS.items():
+            with self.subTest(runtime=runtime):
+                code, out = run_main("contract", "--runtime", runtime)
+                self.assertEqual(code, 0)
+                for verb in VERBS:
+                    self.assertIn("`%s(" % verb, out)
+                self.assertIn("Gap rule", out)
+                self.assertIn(marker, out)
+                for other, other_marker in ADAPTER_MARKERS.items():
+                    if other != runtime:
+                        self.assertNotIn(other_marker, out)
+
+    def test_contract_spawn_has_lookup_and_worker_kinds_and_routing_rule(self):
+        """agent-runtime/R30"""
+        for runtime in ADAPTER_MARKERS:
+            with self.subTest(runtime=runtime):
+                _, out = run_main("contract", "--runtime", runtime)
+                self.assertIn("`spawn(kind, role, task, cwd)`", out)
+                self.assertIn("`lookup`", out)
+                self.assertIn("`worker`", out)
+                self.assertIn("Routing rule", out)
+                adapter = out[out.index(ADAPTER_MARKERS[runtime]):]
+                self.assertIn("`lookup`", adapter)
+                self.assertIn("`worker`", adapter)
+                self.assertIn("Agent tool", adapter)
+                mechanism = {"hc": "hc run --bg", "herdmates": "named native teammate", "native": "named teammate"}
+                self.assertIn(mechanism[runtime], adapter)
+
+    def test_contract_lists_resume_with_runtime_operation_and_help_marks_it_in_contract(self):
+        """agent-runtime/R33"""
+        operation = {"hc": "hc send --wait", "herdmates": "SendMessage", "native": "followup_task"}
+        for runtime, marker in operation.items():
+            with self.subTest(runtime=runtime):
+                _, out = run_main("contract", "--runtime", runtime)
+                self.assertIn("`resume(name, task)`", out)
+                self.assertIn("A fresh spawn with the same name is not resumption.", out)
+                adapter = out[out.index(ADAPTER_MARKERS[runtime]):]
+                resume_line = [l for l in adapter.splitlines() if l.startswith("- `resume`")]
+                self.assertTrue(resume_line)
+                self.assertTrue(any(marker in l for l in resume_line))
+                _, helped = run_main("help", "--runtime", runtime)
+                rows = [l for l in helped.splitlines() if "resume" in l and "in-contract:" in l]
+                self.assertTrue(rows)
+                self.assertTrue(all("in-contract: yes" in l for l in rows))
+
+    def test_contract_output_stays_within_600_words(self):
+        """agent-runtime/R8"""
+        for runtime in ADAPTER_MARKERS:
+            with self.subTest(runtime=runtime):
+                _, out = run_main("contract", "--runtime", runtime)
+                self.assertLessEqual(len(out.split()), 600)
+
+    def test_contract_resolves_runtime_from_env_through_symlink(self):
+        """agent-runtime/R8"""
+        done = subprocess.run([sys.executable, "-B", str(BIN), "contract", "--cli", "codex"],
+                              env={"HERDR_PANE_ID": "p1", "PATH": "/usr/bin:/bin"},
+                              capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=15)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn(ADAPTER_MARKERS["native"], done.stdout)
+        self.assertNotIn(ADAPTER_MARKERS["herdmates"], done.stdout)
+
+    def test_help_lists_capabilities_marked_in_contract_yes_or_no(self):
+        """agent-runtime/R9"""
+        for runtime in ADAPTER_MARKERS:
+            with self.subTest(runtime=runtime):
+                code, out = run_main("help", "--runtime", runtime)
+                self.assertEqual(code, 0)
+                rows = [l for l in out.splitlines() if "in-contract:" in l]
+                self.assertTrue(rows)
+                self.assertTrue(any("in-contract: yes" in l for l in rows))
+                self.assertTrue(any("in-contract: no" in l for l in rows))
+                self.assertTrue(all(("in-contract: yes" in l) or ("in-contract: no" in l) for l in rows))
+        _, out = run_main("help", "--runtime", "hc")
+        for name in ("--on", "hc events", "hc interrupt"):
+            self.assertIn(name, out)
+
+    def test_help_gap_rule_says_propose_in_chat_and_ask_before_raw_command(self):
+        """agent-runtime/R10"""
+        _, out = run_main("help", "--runtime", "hc")
+        self.assertIn("in-contract: no", out)
+        self.assertIn("propose the change in chat in one line", out)
+        self.assertIn("ask before the raw command", out)
 
 
 STATUS_KEYS = {"name", "runtime", "role", "parent", "state", "turn", "native", "next"}
@@ -293,6 +381,14 @@ class StatusTests(unittest.TestCase):
             info = app.status("hc", "fix", {"HC_TERMINAL_ID": "t0"})
         self.assertEqual(info["state"], "unknown")
         self.assertTrue(info["next"])
+
+    def test_hc_adapter_documents_error_as_unknown_and_blocked_gap_row(self):
+        """agent-runtime/R12"""
+        text = (app.SKILL_DIR / "adapters" / "hc.md").read_text(encoding="utf-8")
+        self.assertIn("`error`", text)
+        self.assertIn("`unknown`", text)
+        self.assertIn("hc keys", text)
+        self.assertEqual(hc_status(raw("error"))["state"], "unknown")
 
     def test_hc_error_state_maps_to_unknown(self):
         """agent-runtime/R12: hc error state maps to unknown."""
@@ -450,6 +546,8 @@ class CodexDetectionTests(unittest.TestCase):
         self.assertEqual(out.strip(), "runtime=native role=lead cli=codex")
         code, out = run_main("resolve", "--bogus", env=env)
         self.assertEqual((code, out.strip()), (0, "runtime=native role=unknown cli=codex"))
+        _, out = run_main("contract", env=env)
+        self.assertIn("# Adapter: native", out)
 
     def test_ps_entry_failure_never_raises(self):
         """agent-runtime/R32"""

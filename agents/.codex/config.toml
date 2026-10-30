@@ -58,6 +58,9 @@ env_vars = ["HC_TERMINAL_ID", "HC_SCOPE", "HC_TERMINAL_SOCKET", "HERDR_PANE_ID",
 default_tools_approval_mode = "auto"
 tool_timeout_sec = 600
 
+[mcp_servers.agent-runtime.env]
+AGENT_RUNTIME_DISPATCH = "1"
+
 [mcp_servers.agent-runtime.tools.spawn]
 output_token_limit = 524288
 approval_mode = "approve"
@@ -92,6 +95,7 @@ output_token_limit = 524288
 
 [mcp_servers.agent-runtime.tools.task]
 output_token_limit = 524288
+approval_mode = "approve"
 
 [marketplaces.openai-bundled]
 last_updated = "2026-05-27T20:55:59Z"

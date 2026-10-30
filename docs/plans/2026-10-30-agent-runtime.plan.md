@@ -39,6 +39,9 @@ Herdr.app (`hc`) nests child agents under their lead, mixes Claude and Codex wor
 | D11 | hc spawn: Claude `claude --agent implementer "<task>"`; Codex `codex --no-daemon` with implementer.toml instructions in the first message | Templates first | Reuses existing definitions; templates can come later | Q9 |
 | D12 | New skill `agents/.agents/skills/agent-runtime/` (contract, adapters, Python stdlib script, unittest); `bin/bin/agent-runtime` symlink | Script in `bin/` only | One home serves Claude and Codex through the shared skill dir | Q11 |
 | D14 | All tickets land as commits on `feat/agent-runtime`, each gated; one PR at the end for Felippe to merge | PR and merge per ticket | Auto mode blocks unreviewed merges; one review is cheaper. Converge scope sees the whole branch, so scope is checked per ticket commit (`git show --stat`) | Session, orchestrate run |
+| D15 | Routing (option D): `spawn` has kinds `lookup` (short read-only work; the CLI's own subagent tool in every runtime) and `worker` (implementation, long tasks, Codex, anything the user should watch; `hc run` under hc) | Every delegation an hc worker (C); helpers may act through hc (B) | Counsel 3/3: keeps lookups cheap with a structured result, hc where visibility pays | Counsel 2026-10-30 |
+| D16 | If S27 fails (in-process teammates carry no `agent_id`), turn teammates off under hc: the hc adapter tells leads not to name subagents and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is set to 0 | Accept unguarded teammates | The guard cannot tell them from the lead | Counsel 2026-10-30 |
+| D17 | hc workers toward their parent: `send` (no `--force`) and reads allowed; `keys`, `interrupt`, `kill`, `send --force` denied. Toward their own children or siblings: unrestricted | Leave workers unrestricted | `send` is attributed and refused on a blocked lead; `keys` is anonymous and can answer the lead's permission dialog | Counsel 2026-10-30, session |
 | D13 | Never commit the literal Context7 key; the config.toml ticket stages only its `[hooks]` hunk | Revert to `$CONTEXT7_API_KEY` | Var is not exported, so revert breaks Codex context7 | Q1, session |
 
 ## Scenarios
@@ -80,6 +83,12 @@ Live
 - **S24** WHEN the lead spawns a Claude implementer through the hc adapter, THEN the worker nests under the lead, does the task and reports with `hc send` to the lead.
 - **S25** WHEN the lead spawns a Codex worker through the hc adapter, THEN it runs with `--no-daemon`, receives the task and reports to the lead.
 - **S26** WHEN S24 and S25 run, THEN the Herdr.app sidebar shows both workers nested under the lead.
+- **S27** WHEN an in-process teammate under hc runs `hc send <lead> x`, THEN the PreToolUse guard denies it (its call carries `agent_id`).
+
+Routing and worker guard
+- **S28** WHEN an hc worker runs `hc keys`, `hc interrupt`, `hc kill` or `hc send --force` aimed at its parent, THEN the PreToolUse guard denies it with a reason.
+- **S29** WHEN an hc worker runs `hc send <parent> "<result>"`, or any hc command aimed at its own child or a sibling, THEN it is allowed.
+- **S30** WHEN `agent-runtime contract` runs for any runtime, THEN `spawn` lists kinds `lookup` and `worker`, `lookup` maps to that CLI's subagent tool, and the routing rule is printed.
 
 ## Out of scope
 
@@ -112,9 +121,11 @@ Live
 | T4 | Claude SessionStart pointer, SubagentStart notice, PreToolUse guard, hook tests | S16, S18–S21 | T1 | agents/.claude/settings.json, agents/.agents/skills/agent-runtime/ | agent | COMPLETE (d2adba1, 94de45a; converge PASS; review: no blocking) |
 | T5 | Codex inline SessionStart hook in config.toml, staging only the `[hooks]` hunk | S17 | T1 | agents/.codex/config.toml | agent | COMPLETE (2c18281; converge PASS; review: no blocking) |
 | T6 | Trust the Codex hook in `/hooks` and confirm the pointer line appears | S17 | T12 | none | Felippe | TO-DO |
-| T7 | Rewrite orchestrate and implementer against the contract; remove `herdr` subcommand; `inspect` uses resolve; README Agent Tooling | S22, S23 | T3 | agents/.agents/skills/orchestrate/, agents/.claude/agents/implementer.md, agents/.codex/agents/implementer.toml, README.md | agent | TO-DO |
-| T8 | Live run: Claude and Codex workers through the hc adapter (incl. an in-process teammate hitting the guard); fix adapter text found wrong | S24, S25 | T12 | agents/.agents/skills/agent-runtime/ | agent | TO-DO |
+| T7 | Rewrite orchestrate and implementer against the contract, delegating by the D15 routing rule; remove `herdr` subcommand; `inspect` uses resolve; README Agent Tooling | S22, S23 | T3 | agents/.agents/skills/orchestrate/, agents/.claude/agents/implementer.md, agents/.codex/agents/implementer.toml, README.md | agent | TO-DO |
+| T8 | Live run: Claude and Codex workers through the hc adapter; in-process teammate hits the guard (apply D16 if not); measure one hc worker vs one subagent on the same small task (tokens, seconds); fix adapter text found wrong | S24, S25, S27 | T12 | agents/.agents/skills/agent-runtime/ | agent | TO-DO |
 | T9 | Check the Herdr.app sidebar during T8 | S26 | T8 | none | Felippe | TO-DO |
-| T10 | Guard hardening: subagent allow-list of read-only hc subcommands, options before the subcommand, shell keywords/wrappers (`then`, `{`, `timeout`, `xargs`, `-lc`), worker-thread allow test, notice text aligned with the contract | S19, S21 | T4 | agents/.agents/skills/agent-runtime/hooks/, agents/.agents/skills/agent-runtime/tests/test_hooks.py | agent | TO-DO |
-| T11 | Contract trim to ~500 words; trust-dialog keypress in-contract for spawn; hc `error` maps to `unknown` | S8, S9 | T2 | agents/.agents/skills/agent-runtime/references/, agents/.agents/skills/agent-runtime/adapters/, agents/.agents/skills/agent-runtime/tests/test_agent_runtime.py | agent | TO-DO |
+| T10 | Guard hardening: subagent allow-list of read-only hc subcommands, options before the subcommand, shell keywords/wrappers (`then`, `{`, `timeout`, `xargs`, `-lc`), worker-thread allow test, notice text aligned with the contract | S19, S21 | T4 | agents/.agents/skills/agent-runtime/hooks/, agents/.agents/skills/agent-runtime/tests/test_hooks.py | agent | IN REVIEW (5317749; converge PASS) |
+| T11 | Contract trim to ~500 words; trust-dialog keypress in-contract for spawn; hc `error` maps to `unknown` | S8, S9 | T2 | agents/.agents/skills/agent-runtime/references/, agents/.agents/skills/agent-runtime/adapters/, agents/.agents/skills/agent-runtime/tests/test_agent_runtime.py | agent | IN REVIEW (9b09ed1; converge PASS) |
 | T12 | Merge the PR, pull the live dotfiles checkout (resolve its uncommitted config.toml), restow `bin` so `~/bin/agent-runtime` exists | none | T7, T10, T11 | none | Felippe | TO-DO |
+| T11b | `spawn` kinds `lookup`/`worker` and the routing rule in contract, adapters and capabilities | S30 | T11 | agents/.agents/skills/agent-runtime/references/, agents/.agents/skills/agent-runtime/adapters/, agents/.agents/skills/agent-runtime/tests/test_agent_runtime.py | agent | TO-DO |
+| T13 | Worker-to-parent guard in pre_tool_use: resolve the caller's parent only when a parent-sensitive hc command appears | S28, S29 | T10 | agents/.agents/skills/agent-runtime/hooks/, agents/.agents/skills/agent-runtime/tests/test_hooks.py | agent | TO-DO |

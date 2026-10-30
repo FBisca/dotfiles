@@ -22,8 +22,32 @@ def hc_get(terminal_id):
     return json.loads(result.stdout)
 
 
-def resolve(env, cli="claude", hc_runner=hc_get):
-    """Pure resolution: HERDR_PANE_ID > HC_TERMINAL_ID > native. Never raises on hc failure."""
+CODEX_ENV_MARKERS = ("CODEX_THREAD_ID", "CODEX_SANDBOX")
+
+
+def detect_cli(env):
+    """Codex sets CODEX_THREAD_ID (and CODEX_SANDBOX when sandboxed) for the commands it runs.
+    Claude Code sets CLAUDECODE=1, which wins over a marker inherited from a parent Codex."""
+    if env.get("CLAUDECODE"):
+        return "claude"
+    return "codex" if any(env.get(name) for name in CODEX_ENV_MARKERS) else None
+
+
+def foreground_cli(reply):
+    """Fallback under hc: the terminal's foreground program is codex or claude."""
+    foreground = reply.get("foreground") if isinstance(reply, dict) else None
+    argv = foreground.get("argv") if isinstance(foreground, dict) else None
+    if isinstance(argv, list) and argv and isinstance(argv[0], str):
+        name = os.path.basename(argv[0])
+        return name if name in ("codex", "claude") else None
+    return None
+
+
+def resolve(env, cli=None, hc_runner=hc_get):
+    """Pure resolution: HERDR_PANE_ID > HC_TERMINAL_ID > native. Never raises on hc failure.
+    cli=None detects it from the environment, then from hc, then defaults to claude."""
+    explicit = cli
+    cli = explicit or detect_cli(env) or "claude"
     if env.get("HERDR_PANE_ID"):
         runtime = "herdmates" if cli == "claude" else "native"
         return {"runtime": runtime, "role": "lead" if runtime == "native" else "unknown", "cli": cli}
@@ -36,6 +60,9 @@ def resolve(env, cli="claude", hc_runner=hc_get):
             return unknown
         if not isinstance(reply, dict) or "parent" not in reply:
             return unknown
+        if not explicit and not detect_cli(env):
+            cli = foreground_cli(reply) or cli
+            unknown["cli"] = cli
         parent = reply["parent"]
         if parent is None:
             return {"runtime": "hc", "role": "lead", "cli": cli}
@@ -266,24 +293,28 @@ def build_parser():
     parser = argparse.ArgumentParser(prog="agent-runtime", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("resolve", help="print the runtime, role and parent of this agent")
-    p.add_argument("--cli", choices=("claude", "codex"), default="claude")
+    p.add_argument("--cli", choices=("claude", "codex"), default=None,
+                   help="default: detected from the environment, else claude")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_resolve)
     for name, func, text in (("contract", cmd_contract, "print the verbs, gap rule and the resolved runtime's adapter"),
                              ("help", cmd_help, "list the runtime's capabilities and whether each is in the contract")):
         q = sub.add_parser(name, help=text)
-        q.add_argument("--cli", choices=("claude", "codex"), default="claude")
+        q.add_argument("--cli", choices=("claude", "codex"), default=None,
+                   help="default: detected from the environment, else claude")
         q.add_argument("--runtime", choices=RUNTIMES, help="override the resolved runtime")
         q.set_defaults(func=func)
     p = sub.add_parser("status", help="one JSON record for one agent")
     p.add_argument("name", help="hc terminal name or address; Herdr pane ID under herdmates")
     p.add_argument("--session", help="exact Herdr session name (herdmates)")
-    p.add_argument("--cli", choices=("claude", "codex"), default="claude")
+    p.add_argument("--cli", choices=("claude", "codex"), default=None,
+                   help="default: detected from the environment, else claude")
     p.add_argument("--runtime", choices=RUNTIMES, help="override the resolved runtime")
     p.add_argument("--pretty", action="store_true", help="indent the JSON")
     p.set_defaults(func=cmd_status)
     p = sub.add_parser("list", help="JSON records for the agents you started (hc)")
-    p.add_argument("--cli", choices=("claude", "codex"), default="claude")
+    p.add_argument("--cli", choices=("claude", "codex"), default=None,
+                   help="default: detected from the environment, else claude")
     p.add_argument("--runtime", choices=RUNTIMES, help="override the resolved runtime")
     p.add_argument("--pretty", action="store_true", help="indent the JSON")
     p.set_defaults(func=cmd_list)
@@ -292,7 +323,7 @@ def build_parser():
 
 def fallback_resolve(argv):
     """Last resort for hooks: always a valid line, never a failure."""
-    cli = "claude"
+    cli = detect_cli(os.environ) or "claude"
     for i, arg in enumerate(argv):
         value = arg.split("=", 1)[1] if arg.startswith("--cli=") else (
             argv[i + 1] if arg == "--cli" and i + 1 < len(argv) else None)

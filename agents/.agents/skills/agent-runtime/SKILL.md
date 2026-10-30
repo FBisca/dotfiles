@@ -11,7 +11,7 @@ Before you spawn, message or wait on another agent, run `agent-runtime contract`
 
 When you need something the verbs do not cover, run `agent-runtime help`. It lists the runtime's capabilities, each marked in-contract yes or no. For a no, propose the change in chat in one line and ask before the raw command.
 
-`agent-runtime resolve [--cli claude|codex] [--json]` prints one line, `runtime=<herdmates|hc|native> role=<lead|worker|unknown> [parent=<id>] cli=<claude|codex>`, and always exits 0 (any error prints `runtime=native role=unknown`).
+`agent-runtime resolve [--cli claude|codex] [--json]` (without `--cli` it detects Codex from `CODEX_THREAD_ID`/`CODEX_SANDBOX`, which Codex sets for its commands, or from an hc terminal running `codex`; Claude Code's `CLAUDECODE=1` wins) prints one line, `runtime=<herdmates|hc|native> role=<lead|worker|unknown> [parent=<id>] cli=<claude|codex>`, and always exits 0 (any error prints `runtime=native role=unknown`).
 
 - `HERDR_PANE_ID` set: `herdmates` for Claude (role `unknown`: teammate panes are not distinguishable yet), `native` for Codex.
 - Else `HC_TERMINAL_ID` set: `hc`; role comes from `hc get` (parent null: lead, a plain id: worker). A failed, slow or malformed `hc get` gives `role=unknown`.

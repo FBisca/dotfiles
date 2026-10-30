@@ -393,5 +393,37 @@ class StatusTests(unittest.TestCase):
         self.assertEqual(len(json.loads(buf.getvalue())), 1)
 
 
+class CodexDetectionTests(unittest.TestCase):
+    def test_S32_codex_thread_id_without_cli_resolves_codex_and_native_in_herdr(self):
+        info = app.resolve({"HERDR_PANE_ID": "p1", "CODEX_THREAD_ID": "abc"}, None, hc_failing)
+        self.assertEqual((info["runtime"], info["cli"]), ("native", "codex"))
+
+    def test_S32_codex_sandbox_marker_also_counts(self):
+        self.assertEqual(app.resolve({"CODEX_SANDBOX": "seatbelt"}, None, hc_failing)["cli"], "codex")
+
+    def test_S32_explicit_cli_wins_over_marker(self):
+        info = app.resolve({"HERDR_PANE_ID": "p1", "CODEX_THREAD_ID": "abc"}, "claude", hc_failing)
+        self.assertEqual((info["runtime"], info["cli"]), ("herdmates", "claude"))
+
+    def test_S32_no_marker_defaults_to_claude_and_claude_code_beats_inherited_marker(self):
+        self.assertEqual(app.resolve({}, None, hc_failing)["cli"], "claude")
+        self.assertEqual(app.resolve({"CODEX_THREAD_ID": "x", "CLAUDECODE": "1"}, None, hc_failing)["cli"], "claude")
+
+    def test_S32_hc_foreground_codex_is_fallback_marker(self):
+        reply = {"parent": "t1", "foreground": {"argv": ["/opt/homebrew/bin/codex", "--no-daemon"]}}
+        info = app.resolve({"HC_TERMINAL_ID": "t2"}, None, lambda t: reply)
+        self.assertEqual((info["runtime"], info["role"], info["cli"]), ("hc", "worker", "codex"))
+        info = app.resolve({"HC_TERMINAL_ID": "t2"}, None, lambda t: {"parent": None, "foreground": {"argv": ["claude"]}})
+        self.assertEqual(info["cli"], "claude")
+
+    def test_S32_commands_without_cli_flag_use_detected_cli_even_on_fallback(self):
+        code, out = run_main("resolve", env={"CODEX_THREAD_ID": "x"})
+        self.assertEqual(out.strip(), "runtime=native role=lead cli=codex")
+        code, out = run_main("resolve", "--bogus", env={"CODEX_THREAD_ID": "x"})
+        self.assertEqual((code, out.strip()), (0, "runtime=native role=unknown cli=codex"))
+        _, out = run_main("contract", env={"CODEX_THREAD_ID": "x"})
+        self.assertIn("# Adapter: native", out)
+
+
 if __name__ == "__main__":
     unittest.main()

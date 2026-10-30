@@ -5,7 +5,7 @@
     {
       "name": "agent-runtime",
       "source": "./plugins/agent-runtime",
-      "description": "Agent delegation tools (spawn, message, resume, wait, status, list, collect, stop, report) and their hooks."
+      "description": "Agent delegation tools (spawn, message, resume, wait, task, status, list, collect, stop, report) and their hooks."
     }
   ]
 }

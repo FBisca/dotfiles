@@ -229,6 +229,19 @@ class Store:
             row = db.execute("SELECT address FROM workers WHERE team=? AND name=?", (team, name)).fetchone()
             return row[0] if row else None
 
+    def started_by_other(self, assignment, address):
+        """True when another live assignment of this worker already bound that terminal address."""
+        with self.transaction() as db:
+            return bool(db.execute(
+                "SELECT 1 FROM assignments a JOIN workers w ON w.id=a.worker WHERE w.address=? AND a.id!=? "
+                "AND a.state NOT IN ('pending','failed') AND a.worker=(SELECT worker FROM assignments WHERE id=?)",
+                (address, assignment, assignment)).fetchone())
+
+    def assignment_state(self, assignment):
+        with self.transaction() as db:
+            row = db.execute("SELECT state FROM assignments WHERE id=?", (assignment,)).fetchone()
+            return row[0] if row else None
+
     def fail_observed(self, failures):
         """D2: persist observed exit/interrupt/replacement once: failed state, one lead message, task released.
 

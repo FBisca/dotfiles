@@ -127,6 +127,16 @@ def codex_instructions():
         raise ToolError("cannot read Codex implementer instructions from %s: %s" % (path, error))
 
 
+def discard(name, env):
+    """Best effort: end and remove a terminal we may have started."""
+    fresh = Context()
+    for command in ("kill", "rm"):
+        try:
+            hc([command, name], env, fresh)
+        except ToolError:
+            pass
+
+
 def spawn(arguments, env, ctx):
     kind = arguments.get("kind")
     cli = arguments.get("cli") or "claude"
@@ -142,12 +152,21 @@ def spawn(arguments, env, ctx):
     _, caller = require_hc(env)
     if not caller:
         raise ToolError("HC_TERMINAL_ID is not set; cannot address the report")
-    message = '%s\n\nReport with: hc send %s "<result>" when done or stuck' % (task, caller)
+    message = "%s\n\nWhen done or stuck, call the agent-runtime report tool with your result." % task
     if cli == "claude":
-        program = ["claude", "--agent", "implementer", message]
+        program = ["claude", "--agent", "implementer", "--permission-mode", "auto", message]
     else:
         program = ["codex", "--no-daemon", "%s\n\n%s" % (codex_instructions(), message)]
-    out = hc(["run", "--bg", "--name", name, "--cwd", cwd, "--parent", caller, "--json"] + program, env, ctx)
+    # A cancel can land while hc run is starting the terminal; whatever it created is ended again.
+    try:
+        out = hc(["run", "--bg", "--name", name, "--cwd", cwd, "--parent", caller, "--json"] + program, env, ctx)
+    except ToolError:
+        if ctx.cancelled.is_set():
+            discard(name, env)
+        raise
+    if ctx.cancelled.is_set():
+        discard(name, env)
+        raise ToolError("cancelled")
     try:
         started = json.loads(out)
     except ValueError:
@@ -164,9 +183,19 @@ def spawn(arguments, env, ctx):
     return result(info)
 
 
+def require_child(name, env, ctx):
+    _, caller = require_hc(env)
+    try:
+        raw = json.loads(hc(["get", name, "--json"], env, ctx))
+    except ValueError:
+        raise ToolError("cannot read %s" % name)
+    if not caller or not isinstance(raw, dict) or raw.get("parent") != caller:
+        raise ToolError("%s is not your child; refusing" % name)
+
+
 def send(args_before, target, text, env, ctx, timeout=SHORT_SECONDS):
     worker_name(target)
-    require_hc(env)
+    require_child(target, env, ctx)
     out = hc(["send"] + args_before + [target, text], env, ctx, timeout)
     return out
 
@@ -199,7 +228,11 @@ def wait(arguments, env, ctx):
         argv = ["wait", worker_name(target), "--timeout", str(seconds), "--json"]
     try:
         code, out, err = run(["hc"] + argv, env, ctx, seconds + 10)
-        news = {"exit": code, "output": (out.strip() or err.strip())[:500]}
+        text = out.strip() or err.strip()
+        try:
+            news = {"exit": code, "news": json.loads(text)}
+        except ValueError:
+            news = {"exit": code, "output": text}
     except ToolError as error:
         if ctx.cancelled.is_set():
             raise
@@ -231,16 +264,14 @@ def collect(arguments, env, ctx):
 def stop(arguments, env, ctx):
     (name,) = need(arguments, "name")
     worker_name(name)
-    _, caller = require_hc(env)
+    require_child(name, env, ctx)
+    note = ""
     try:
-        raw = json.loads(hc(["get", name, "--json"], env, ctx))
-    except ValueError:
-        raise ToolError("cannot read %s" % name)
-    if not caller or raw.get("parent") != caller:
-        raise ToolError("%s is not your child; refusing to stop it" % name)
-    hc(["kill", name], env, ctx)
+        hc(["kill", name], env, ctx)
+    except ToolError as error:
+        note = " (kill: %s)" % error  # an exited terminal still needs removing
     hc(["rm", name], env, ctx)
-    return result("stopped %s" % name)
+    return result("stopped %s%s" % (name, note))
 
 
 def report(arguments, env, ctx):

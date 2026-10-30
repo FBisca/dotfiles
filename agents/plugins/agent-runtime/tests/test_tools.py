@@ -80,9 +80,10 @@ class SpawnTests(ToolCase):
         self.assertFalse(result["isError"], text)
         (argv,) = self.runs("run")
         self.assertEqual(argv[:9], ["run", "--bg", "--name", "w1", "--cwd", "/tmp/c", "--parent", "t0", "--json"])
-        self.assertEqual(argv[9:12], ["claude", "--agent", "implementer"])
-        self.assertTrue(argv[12].startswith("do x"))
-        self.assertIn('Report with: hc send t0 "<result>" when done or stuck', argv[12])
+        self.assertEqual(argv[9:14], ["claude", "--agent", "implementer", "--permission-mode", "auto"])
+        self.assertTrue(argv[14].startswith("do x"))
+        self.assertIn("When done or stuck, call the agent-runtime report tool with your result.", argv[14])
+        self.assertNotIn("hc send", argv[14])
         info = json.loads(text)
         self.assertEqual((info["name"], info["address"], info["parent"]), ("w1", "t9", "t0"))
 
@@ -95,7 +96,8 @@ class SpawnTests(ToolCase):
         self.assertEqual(argv[9:11], ["codex", "--no-daemon"])
         self.assertTrue(argv[11].startswith("CODEX IMPLEMENTER RULES"))
         self.assertIn("do x", argv[11])
-        self.assertIn('hc send t0 "<result>"', argv[11])
+        self.assertIn("call the agent-runtime report tool", argv[11])
+        self.assertNotIn("permission-mode", " ".join(argv))
 
     def test_S2_unsent_first_message_is_an_error(self):
         """agent-runtime-tools/S2"""
@@ -133,16 +135,27 @@ class SpawnTests(ToolCase):
 
 
 class SendTests(ToolCase):
+    CHILD = {"get:w1": {"out": raw("w1", "t0")}}
+
+    def test_S4_message_refuses_a_terminal_that_is_not_my_child(self):
+        """agent-runtime-tools/S4"""
+        session = self.start({"get:w1": {"out": raw("w1", "tX")}})
+        for name, args in (("message", {"to": "w1", "text": "hi"}), ("resume", {"name": "w1", "task": "go"})):
+            result, text = self.call(session, name, args)
+            self.assertTrue(result["isError"], name)
+            self.assertIn("not your child", text)
+        self.assertEqual(self.runs("send"), [])
+
     def test_S4_message_is_hc_send_without_force(self):
         """agent-runtime-tools/S4"""
-        session = self.start()
+        session = self.start(self.CHILD)
         result, _ = self.call(session, "message", {"to": "w1", "text": "hello"})
         self.assertFalse(result["isError"])
         self.assertEqual(self.runs("send"), [["send", "w1", "hello"]])
 
     def test_S4_resume_adds_wait_and_never_force(self):
         """agent-runtime-tools/S4"""
-        session = self.start()
+        session = self.start(self.CHILD)
         result, _ = self.call(session, "resume", {"name": "w1", "task": "continue"})
         self.assertFalse(result["isError"])
         (argv,) = self.runs("send")
@@ -152,7 +165,7 @@ class SendTests(ToolCase):
 
     def test_S4_target_cannot_be_an_option(self):
         """agent-runtime-tools/S4"""
-        session = self.start()
+        session = self.start(self.CHILD)
         result, _ = self.call(session, "message", {"to": "--force", "text": "x"})
         self.assertTrue(result["isError"])
         self.assertEqual(self.runs("send"), [])
@@ -177,6 +190,13 @@ class WaitCollectStopReportTests(ToolCase):
         self.call(session, "wait", {"target": "w1"})
         self.assertEqual(self.runs("wait"), [["wait", "--children", "all", "--timeout", "170", "--json"],
                                              ["wait", "w1", "--timeout", "170", "--json"]])
+
+    def test_S5_wait_returns_hcs_parsed_news_without_truncation(self):
+        """agent-runtime-tools/S5"""
+        news = {"reason": "idle", "terminal": "t1", "note": "x" * 900}
+        session = self.start({"wait": {"out": json.dumps(news)}, "ls": {"out": json.dumps({"terminals": []})}})
+        _, text = self.call(session, "wait", {"target": "any"})
+        self.assertEqual(json.loads(text)["wait"]["news"], news)
 
     def test_S5_wait_timeout_is_capped(self):
         """agent-runtime-tools/S5"""
@@ -245,6 +265,29 @@ class WaitCollectStopReportTests(ToolCase):
         result, text = self.call(session, "report", {"text": "x"})
         self.assertTrue(result["isError"])
         self.assertEqual(self.runs("send"), [])
+
+
+class StopCleanupTests(ToolCase):
+    def test_S7_stop_still_removes_a_terminal_that_already_exited(self):
+        """agent-runtime-tools/S7"""
+        session = self.start({"get:w1": {"out": raw("w1", "t0")}, "kill": {"rc": 1, "err": "already exited"}})
+        result, text = self.call(session, "stop", {"name": "w1"})
+        self.assertFalse(result["isError"], text)
+        self.assertEqual([c[0] for c in self.runs() if c[0] in ("kill", "rm")], ["kill", "rm"])
+
+    def test_S2_cancelling_spawn_ends_the_terminal_it_started(self):
+        """agent-runtime-tools/S2"""
+        session = self.start({"run": {"sleep": 30}})
+        write = lambda m: (session.proc.stdin.write(json.dumps(m) + "\n"), session.proc.stdin.flush())
+        write({"jsonrpc": "2.0", "id": 60, "method": "tools/call", "params": {"name": "spawn", "arguments": {
+            "kind": "worker", "name": "w1", "task": "t", "cwd": "/tmp"}}})
+        deadline = time.monotonic() + 5
+        while not self.runs("run") and time.monotonic() < deadline:
+            time.sleep(0.05)
+        write({"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 60}})
+        session.proc.stdin.close()
+        self.assertEqual(session.proc.wait(timeout=15), 0)
+        self.assertEqual([c[:2] for c in self.runs() if c[0] in ("kill", "rm")], [["kill", "w1"], ["rm", "w1"]])
 
 
 class RuntimeGapTests(ToolCase):

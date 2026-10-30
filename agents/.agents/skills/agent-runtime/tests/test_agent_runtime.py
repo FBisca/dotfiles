@@ -19,6 +19,7 @@ BIN = Path(__file__).resolve().parents[5] / "bin" / "bin" / "agent-runtime"
 spec = importlib.util.spec_from_file_location("agent_runtime", SCRIPT)
 app = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(app)
+app.ps_entry = lambda pid: None  # tests never read the real process tree
 
 
 def hc_returning(parent):
@@ -81,6 +82,9 @@ class CliTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.bindir = Path(self.temp.name)
+        ps = self.bindir / "ps"
+        ps.write_text("#!/bin/sh\nexit 1\n")
+        ps.chmod(0o755)
 
     def fake_hc(self, body):
         path = self.bindir / "hc"
@@ -394,22 +398,56 @@ class StatusTests(unittest.TestCase):
 
 
 class CodexDetectionTests(unittest.TestCase):
-    def test_S32_codex_thread_id_without_cli_resolves_codex_and_native_in_herdr(self):
-        info = app.resolve({"HERDR_PANE_ID": "p1", "CODEX_THREAD_ID": "abc"}, None, hc_failing)
+    @staticmethod
+    def table(**chain):
+        """Fake process table: {pid: (ppid, args)}."""
+        return lambda pid: chain.get(pid)
+
+    def detect(self, env, table, ppid=100):
+        with patch.object(app, "ps_entry", side_effect=table), patch.object(app.os, "getppid", return_value=ppid):
+            return app.detect_cli(env)
+
+    def test_S32_nearest_codex_ancestor_wins_over_inherited_claudecode(self):
+        procs = {100: (90, "/bin/zsh -c run"), 90: (80, "/opt/homebrew/bin/codex exec"), 80: (70, "claude")}
+        self.assertEqual(self.detect({"CLAUDECODE": "1"}, procs.get), "codex")
+
+    def test_S32_nearest_claude_ancestor_wins_over_inherited_codex_markers(self):
+        procs = {100: (90, "/bin/zsh"), 90: (80, "claude"), 80: (70, "codex")}
+        self.assertEqual(self.detect({"CODEX_THREAD_ID": "x"}, procs.get), "claude")
+
+    def test_S32_node_wrapped_cli_is_matched(self):
+        procs = {100: (90, "node /usr/lib/node_modules/@openai/codex/bin/codex.js"), 90: (1, "node /x/bin/claude")}
+        self.assertEqual(self.detect({}, {100: (90, "sh"), 90: (80, "node /x/bin/codex"), 80: (1, "launchd")}.get), "codex")
+
+    def test_S32_walk_failure_falls_back_to_env_markers(self):
+        none = lambda pid: None
+        self.assertEqual(self.detect({"CODEX_THREAD_ID": "x", "CLAUDECODE": "1"}, none), "codex")
+        self.assertEqual(self.detect({"CODEX_TOOL_CALL_ID": "x"}, none), "codex")
+        self.assertEqual(self.detect({"CLAUDECODE": "1"}, none), "claude")
+        self.assertIsNone(self.detect({}, none))
+
+    def test_S32_walk_is_capped_and_survives_cycles(self):
+        loop = {100: (90, "sh"), 90: (100, "sh")}
+        self.assertIsNone(self.detect({}, loop.get))
+        deep = {n: (n + 1, "sh") for n in range(100, 400)}
+        self.assertIsNone(self.detect({}, deep.get))
+
+    def test_S32_codex_without_cli_resolves_native_in_herdr(self):
+        procs = {100: (90, "codex")}
+        with patch.object(app, "ps_entry", side_effect=procs.get), patch.object(app.os, "getppid", return_value=100):
+            info = app.resolve({"HERDR_PANE_ID": "p1", "CLAUDECODE": "1"}, None, hc_failing)
         self.assertEqual((info["runtime"], info["cli"]), ("native", "codex"))
 
-    def test_S32_codex_sandbox_marker_also_counts(self):
-        self.assertEqual(app.resolve({"CODEX_SANDBOX": "seatbelt"}, None, hc_failing)["cli"], "codex")
-
-    def test_S32_explicit_cli_wins_over_marker(self):
-        info = app.resolve({"HERDR_PANE_ID": "p1", "CODEX_THREAD_ID": "abc"}, "claude", hc_failing)
+    def test_S32_explicit_cli_wins_over_ancestry(self):
+        procs = {100: (90, "codex")}
+        with patch.object(app, "ps_entry", side_effect=procs.get), patch.object(app.os, "getppid", return_value=100):
+            info = app.resolve({"HERDR_PANE_ID": "p1"}, "claude", hc_failing)
         self.assertEqual((info["runtime"], info["cli"]), ("herdmates", "claude"))
 
-    def test_S32_no_marker_defaults_to_claude_and_claude_code_beats_inherited_marker(self):
+    def test_S32_no_marker_defaults_to_claude(self):
         self.assertEqual(app.resolve({}, None, hc_failing)["cli"], "claude")
-        self.assertEqual(app.resolve({"CODEX_THREAD_ID": "x", "CLAUDECODE": "1"}, None, hc_failing)["cli"], "claude")
 
-    def test_S32_hc_foreground_codex_is_fallback_marker(self):
+    def test_S32_hc_foreground_codex_is_fallback_after_env(self):
         reply = {"parent": "t1", "foreground": {"argv": ["/opt/homebrew/bin/codex", "--no-daemon"]}}
         info = app.resolve({"HC_TERMINAL_ID": "t2"}, None, lambda t: reply)
         self.assertEqual((info["runtime"], info["role"], info["cli"]), ("hc", "worker", "codex"))
@@ -417,12 +455,17 @@ class CodexDetectionTests(unittest.TestCase):
         self.assertEqual(info["cli"], "claude")
 
     def test_S32_commands_without_cli_flag_use_detected_cli_even_on_fallback(self):
-        code, out = run_main("resolve", env={"CODEX_THREAD_ID": "x"})
+        env = {"CODEX_THREAD_ID": "x"}
+        code, out = run_main("resolve", env=env)
         self.assertEqual(out.strip(), "runtime=native role=lead cli=codex")
-        code, out = run_main("resolve", "--bogus", env={"CODEX_THREAD_ID": "x"})
+        code, out = run_main("resolve", "--bogus", env=env)
         self.assertEqual((code, out.strip()), (0, "runtime=native role=unknown cli=codex"))
-        _, out = run_main("contract", env={"CODEX_THREAD_ID": "x"})
+        _, out = run_main("contract", env=env)
         self.assertIn("# Adapter: native", out)
+
+    def test_S32_ps_entry_failure_never_raises(self):
+        with patch.object(app.subprocess, "run", side_effect=OSError("no ps")):
+            self.assertIsNone(app.real_ps_entry(1))
 
 
 if __name__ == "__main__":

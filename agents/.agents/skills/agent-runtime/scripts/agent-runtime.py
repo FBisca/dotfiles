@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 HC_TIMEOUT_SECONDS = 2
@@ -22,15 +23,67 @@ def hc_get(terminal_id):
     return json.loads(result.stdout)
 
 
-CODEX_ENV_MARKERS = ("CODEX_THREAD_ID", "CODEX_SANDBOX")
+CODEX_ENV_MARKERS = ("CODEX_THREAD_ID", "CODEX_TOOL_CALL_ID")
+MAX_ANCESTOR_HOPS = 15
+ANCESTRY_BUDGET_SECONDS = 0.5
+PS_TIMEOUT_SECONDS = 0.2
+
+
+def real_ps_entry(pid, timeout=PS_TIMEOUT_SECONDS):
+    """(ppid, args) of one process via ps, or None on any failure."""
+    try:
+        result = subprocess.run(["ps", "-o", "ppid=,args=", "-p", str(pid)], capture_output=True, text=True,
+                                stdin=subprocess.DEVNULL, timeout=timeout)
+        if result.returncode != 0:
+            return None
+        ppid, _, args = result.stdout.strip().partition(" ")
+        return int(ppid), args.strip()
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+ps_entry = real_ps_entry
+
+
+def cli_of_args(args):
+    """`codex` or `claude` when argv[0] (or argv[1] after a node/bun wrapper) has that basename."""
+    tokens = args.split()
+    for token in tokens[:2]:
+        name = os.path.basename(token)
+        if name in ("codex", "claude"):
+            return name
+        if name not in ("node", "bun", "deno"):
+            break
+    return None
+
+
+def ancestor_cli():
+    """Nearest ancestor process that is codex or claude; None when the walk fails or finds nothing."""
+    deadline = time.monotonic() + ANCESTRY_BUDGET_SECONDS
+    pid, seen = os.getppid(), set()
+    for _ in range(MAX_ANCESTOR_HOPS):
+        if pid in seen or pid <= 1 or time.monotonic() > deadline:
+            return None
+        seen.add(pid)
+        entry = ps_entry(pid)
+        if not entry:
+            return None
+        pid, args = entry
+        found = cli_of_args(args)
+        if found:
+            return found
+    return None
 
 
 def detect_cli(env):
-    """Codex sets CODEX_THREAD_ID (and CODEX_SANDBOX when sandboxed) for the commands it runs.
-    Claude Code sets CLAUDECODE=1, which wins over a marker inherited from a parent Codex."""
-    if env.get("CLAUDECODE"):
-        return "claude"
-    return "codex" if any(env.get(name) for name in CODEX_ENV_MARKERS) else None
+    """Process ancestry first (env markers are inherited when one CLI starts the other), then env
+    markers (Codex sets CODEX_THREAD_ID/CODEX_TOOL_CALL_ID; Claude Code sets CLAUDECODE), else None."""
+    found = ancestor_cli()
+    if found:
+        return found
+    if any(env.get(name) for name in CODEX_ENV_MARKERS):
+        return "codex"
+    return "claude" if env.get("CLAUDECODE") else None
 
 
 def foreground_cli(reply):
@@ -47,7 +100,8 @@ def resolve(env, cli=None, hc_runner=hc_get):
     """Pure resolution: HERDR_PANE_ID > HC_TERMINAL_ID > native. Never raises on hc failure.
     cli=None detects it from the environment, then from hc, then defaults to claude."""
     explicit = cli
-    cli = explicit or detect_cli(env) or "claude"
+    detected = None if explicit else detect_cli(env)
+    cli = explicit or detected or "claude"
     if env.get("HERDR_PANE_ID"):
         runtime = "herdmates" if cli == "claude" else "native"
         return {"runtime": runtime, "role": "lead" if runtime == "native" else "unknown", "cli": cli}
@@ -60,7 +114,7 @@ def resolve(env, cli=None, hc_runner=hc_get):
             return unknown
         if not isinstance(reply, dict) or "parent" not in reply:
             return unknown
-        if not explicit and not detect_cli(env):
+        if not explicit and not detected:
             cli = foreground_cli(reply) or cli
             unknown["cli"] = cli
         parent = reply["parent"]

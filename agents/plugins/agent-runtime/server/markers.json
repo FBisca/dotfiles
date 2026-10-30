@@ -1,0 +1,14 @@
+{
+  "claude-code": {
+    "interrupt": ["Interrupted · What should Claude do instead?"],
+    "prompt": ["❯"],
+    "placeholders": [],
+    "read_states": ["idle", "done"]
+  },
+  "codex": {
+    "interrupt": ["Conversation interrupted - use /feedback if something went wrong"],
+    "prompt": ["›"],
+    "placeholders": ["Ask Codex to do anything"],
+    "read_states": ["idle", "done", "working"]
+  }
+}

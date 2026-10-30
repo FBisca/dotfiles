@@ -131,7 +131,7 @@ def format_line(info):
     return " ".join("%s=%s" % (key, info[key]) for key in FIELDS if key in info)
 
 
-CONTRACT_STATES = ("working", "idle", "blocked", "done", "exited", "unknown")
+CONTRACT_STATES = ("working", "idle", "interrupted", "blocked", "done", "exited", "unknown")
 READ_ERRORS = (OSError, RuntimeError, ValueError, subprocess.SubprocessError)
 
 
@@ -182,19 +182,88 @@ HC_NATIVE_KEYS = ("address", "name", "state", "status", "turn", "exit_code", "re
 HERDR_NOTE = "read only; verify live agent identity before mapping a task to this pane"
 
 
+ARGV_MAX_LENGTH = 40
+MARKERS_PATH = Path(__file__).resolve().with_name("markers.json")
+READ_LINES = 200
+RESUME_TEXT = "continue the task where you stopped"
+
+
+def trim_argv(argv):
+    """Arguments with whitespace or over ARGV_MAX_LENGTH characters read <task>."""
+    if not isinstance(argv, list):
+        return argv
+    return ["<task>" if isinstance(a, str) and (len(a) > ARGV_MAX_LENGTH or any(c.isspace() for c in a)) else a
+            for a in argv]
+
+
 def hc_native(raw):
     native = {key: raw.get(key) for key in HC_NATIVE_KEYS}
     foreground = raw.get("foreground")
-    native["foreground"] = {"argv": foreground.get("argv")} if isinstance(foreground, dict) else None
+    native["foreground"] = {"argv": trim_argv(foreground.get("argv"))} if isinstance(foreground, dict) else None
     return native
+
+
+def hc_app(raw):
+    """claude-code or codex, from status.app, else the foreground argv[0]."""
+    status = raw.get("status")
+    app = status.get("app") if isinstance(status, dict) else None
+    if app in ("claude-code", "codex"):
+        return app
+    foreground = raw.get("foreground")
+    argv = foreground.get("argv") if isinstance(foreground, dict) else None
+    if isinstance(argv, list) and argv and isinstance(argv[0], str):
+        return {"claude": "claude-code", "codex": "codex"}.get(os.path.basename(argv[0]))
+    return None
+
+
+def interruption_count(text, spec):
+    """Interrupt markers in the block after the last non-empty prompt line, and in the whole history.
+    (0, 0) when the screen holds no task prompt line."""
+    lines = text.splitlines()
+    last = None
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        for prompt in spec["prompt"]:
+            body = stripped[len(prompt):].strip() if stripped.startswith(prompt) else ""
+            if body and body not in spec["placeholders"]:
+                last = index
+    if last is None:
+        return 0, 0
+    hit = lambda line: any(marker in line for marker in spec["interrupt"])
+    return sum(map(hit, lines[last + 1:])), sum(map(hit, lines))
+
+
+def interrupted_rows(name, history):
+    if history >= 2:
+        return [row("interrupted again; history holds %d interrupts" % history,
+                    "ask the user whether to resume %s" % name)]
+    return [row("interrupted by a person or Esc", RESUME_TEXT, "resume")]
+
+
+def read_interruption(raw, state, name):
+    """(state, next rows) when the screen shows an interrupt; None when it does not or cannot be read."""
+    cli = hc_app(raw)
+    try:
+        spec = json.loads(MARKERS_PATH.read_text(encoding="utf-8")).get(cli)
+        if not spec or state not in spec["read_states"]:
+            return None
+        text = json.loads(run_command(["hc", "read", name, "--lines", str(READ_LINES), "--json"]))["text"]
+        tail, history = interruption_count(text, spec)
+    except Exception:
+        return None
+    return ("interrupted", interrupted_rows(name, history)) if tail else None
 
 
 def hc_record(name, raw):
     state = hc_state(raw)
     parent = raw.get("parent")
-    return record("hc", raw.get("name") or raw.get("address") or name, state,
-                  role="worker" if parent else "lead", parent=parent, turn=raw.get("turn"),
-                  native=hc_native(raw), next_rows=hc_next(raw.get("name") or raw.get("address") or name, state))
+    label = raw.get("name") or raw.get("address") or name
+    rows = hc_next(label, state)
+    found = read_interruption(raw, state, raw.get("address") or name)
+    if found:
+        state, rows = found
+    return record("hc", label, state, role="worker" if parent else "lead", parent=parent,
+                  turn=raw.get("turn"), native=hc_native(raw), next_rows=rows)
 
 
 def herdr_snapshot(pane, session, env):

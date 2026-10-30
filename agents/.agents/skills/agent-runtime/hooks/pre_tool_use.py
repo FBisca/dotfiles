@@ -197,9 +197,13 @@ def verdict(command, is_subagent):
     return None
 
 
-def main():
+def main(argv=()):
+    """`--cli codex` selects the Codex payload: same tool_input.command and deny JSON as Claude,
+    but only the Bash tool is inspected and there is no agent_id marker for subagents."""
     try:
         data = json.load(sys.stdin)
+        if "codex" in argv and data.get("tool_name", "Bash") != "Bash":
+            return 0
         command = data.get("tool_input", {}).get("command", "")
         reason = verdict(command, bool(data.get("agent_id")))
         if reason:
@@ -212,4 +216,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

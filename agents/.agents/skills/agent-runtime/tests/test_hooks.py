@@ -143,7 +143,7 @@ class WorkerGuardTests(unittest.TestCase):
                  "t12": {"address": "t12", "parent": "t9"}, "kid": {"address": "t12", "parent": "t9"},
                  "t10": {"address": "t10", "parent": "t1"}, "sib": {"address": "t10", "parent": "t1"}}
 
-    def call(self, command, caller="t9", terminals=None, **extra):
+    def call(self, command, caller="t9", terminals=None, payload=None, args=(), **extra):
         terminals = self.TERMINALS if terminals is None else terminals
         with tempfile.TemporaryDirectory() as tmp:
             data = Path(tmp) / "data"
@@ -158,8 +158,8 @@ class WorkerGuardTests(unittest.TestCase):
             env = {"PATH": "%s:/usr/bin:/bin" % fake.parent, "HOME": tmp}
             if caller:
                 env["HC_TERMINAL_ID"] = caller
-            return subprocess.run([sys.executable, "-B", str(HOOKS / "pre_tool_use.py")],
-                                  input=json.dumps(bash(command, **extra)), capture_output=True,
+            return subprocess.run([sys.executable, "-B", str(HOOKS / "pre_tool_use.py"), *args],
+                                  input=json.dumps(payload or bash(command, **extra)), capture_output=True,
                                   text=True, env=env, timeout=20)
 
     def assertDenied(self, command, **kw):
@@ -209,6 +209,64 @@ class WorkerGuardTests(unittest.TestCase):
         self.assertAllowed("hc keys t9 enter", caller="t1")
         self.assertAllowed("hc kill t1", caller=None)
         self.assertAllowed("hc kill t1", agent_type="implementer", caller="t1")
+
+
+def codex_bash(command):
+    return {"session_id": "s1", "turn_id": "u1", "transcript_path": None, "cwd": "/repo",
+            "hook_event_name": "PreToolUse", "model": "gpt-5.5", "permission_mode": "default",
+            "tool_name": "Bash", "tool_use_id": "call_1", "tool_input": {"command": command}}
+
+
+class CodexWorkerGuardTests(WorkerGuardTests):
+    """Codex PreToolUse payloads (no agent_id marker): only the worker-to-parent rule applies."""
+
+    def call(self, command, payload=None, **kw):
+        return super().call(command, payload=payload or codex_bash(command),
+                            args=("--cli", "codex"), **kw)
+
+    test_S28_worker_destructive_calls_at_parent_denied = None  # replaced below
+    test_S28_literal_parent_address_denied_when_target_unresolvable = None
+    test_S29_worker_sends_result_to_parent = None
+    test_S29_worker_commands_at_child_or_sibling_allowed = None
+    test_S29_fail_open_when_resolution_fails = None
+    test_S29_leads_and_non_hc_sessions_unrestricted = None
+
+    def test_S31_codex_worker_destructive_calls_at_parent_denied(self):
+        for command in ("hc keys t1 enter", "hc interrupt t1", "hc kill lead", "hc send --force t1 x",
+                        "echo a\nhc keys t1 enter", "hc keys $P enter"):
+            with self.subTest(command=command):
+                self.assertDenied(command)
+        r = self.call("hc kill t1")
+        self.assertEqual(json.loads(r.stdout)["hookSpecificOutput"]["hookEventName"], "PreToolUse")
+
+    def test_S31_codex_worker_allowed_calls(self):
+        for command in ("hc send t1 'done'", "hc send lead 'done'", "hc keys t12 enter",
+                        "hc kill sib", "hc get t1", "ls"):
+            with self.subTest(command=command):
+                self.assertAllowed(command)
+        self.assertAllowed("hc keys t1 enter", caller="t1")  # lead
+        self.assertAllowed("hc keys t1 enter", caller=None)
+
+    def test_S31_codex_non_bash_tools_ignored(self):
+        payload = codex_bash("hc keys t1 enter")
+        payload["tool_name"] = "apply_patch"
+        self.assertAllowed("", payload=payload)
+
+    def test_S31_codex_config_has_pre_tool_use_hook(self):
+        try:
+            import tomllib
+        except ImportError:
+            self.skipTest("tomllib unavailable on this python; config.toml not parsed")
+        config = tomllib.loads((REPO / ".codex/config.toml").read_text())
+        groups = [g for g in config["hooks"]["PreToolUse"]
+                  if any("agent-runtime/hooks/pre_tool_use.py" in h["command"] for h in g["hooks"])]
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["matcher"], "^Bash$")
+        hook = groups[0]["hooks"][0]
+        self.assertIn("--cli codex", hook["command"])
+        self.assertEqual(hook["timeout"], 5)
+        script = hook["command"].split()[0].strip("'\"").replace("$HOME/", "")
+        self.assertTrue((REPO / script).exists())
 
 
 class WiringTests(unittest.TestCase):

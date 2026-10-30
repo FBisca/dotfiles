@@ -60,7 +60,7 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(buf.getvalue().strip(), "runtime=hc role=unknown cli=claude")
         self.assertEqual(run.call_args.kwargs["timeout"], 2)
 
-    def test_json_output_has_same_fields(self):
+    def test_S5_json_output_has_same_fields(self):
         buf = io.StringIO()
         with patch.dict(app.os.environ, {}, clear=True), redirect_stdout(buf):
             self.assertEqual(app.main(["resolve", "--json", "--cli", "codex"]), 0)

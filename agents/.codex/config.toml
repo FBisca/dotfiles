@@ -106,3 +106,12 @@ type = "command"
 command = '"$HOME/bin/agent-runtime-hook" --cli codex'
 timeout = 5
 statusMessage = "Checking hc command"
+
+[[hooks.PreToolUse]]
+matcher = "^mcp__agent-runtime__.*$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = '"$HOME/bin/agent-runtime-hook" --cli codex'
+timeout = 5
+statusMessage = "Checking agent-runtime caller"

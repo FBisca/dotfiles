@@ -103,7 +103,7 @@ Live
 
 | # | What it delivers | Satisfies | Blocked by | Paths | Owner | Status |
 |---|---|---|---|---|---|---|
-| T1 | Plugin skeleton and local marketplace; stdio MCP server listing the nine tools; library moved from the skill into the plugin; `~/bin/agent-runtime` points at it | S1, S18 | none | agents/plugins/agent-runtime/, agents/.claude-plugin/, bin/bin/agent-runtime, agents/.agents/skills/agent-runtime/, agents/.agents/skills/orchestrate/scripts/, agents/.agents/skills/orchestrate/tests/, agents/.stow-local-ignore | agent | IN PROGRESS |
+| T1 | Plugin skeleton and local marketplace; stdio MCP server listing the nine tools; library moved from the skill into the plugin; `~/bin/agent-runtime` points at it | S1, S18 | none | agents/plugins/agent-runtime/, agents/.claude-plugin/, bin/bin/agent-runtime, agents/.agents/skills/agent-runtime/, agents/.agents/skills/orchestrate/scripts/, agents/.agents/skills/orchestrate/tests/, agents/.stow-local-ignore | agent | COMPLETE (7c7960a…0f1b0e8; converge PASS; review blocking fixed) |
 | T2 | hc tool implementations: spawn, message, resume, wait, collect, stop, report; herdmates/native gap errors | S2–S10 | T1 | agents/plugins/agent-runtime/ | agent | TO-DO |
 | T3 | `status`/`list`: interrupted detection with marker table and fixtures, repeat rule, read-failure fallback, argv trimming | S11–S15 | T1 | agents/plugins/agent-runtime/ | agent | TO-DO |
 | T4 | Hooks in the plugin: Bash raw-hc deny for all agents, subagent deny on mutating tools; remove SessionStart pointer and old hooks from settings.json | S16, S17, S18 | T1 | agents/plugins/agent-runtime/, agents/.claude/settings.json | agent | TO-DO |

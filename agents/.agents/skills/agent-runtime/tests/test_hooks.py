@@ -69,9 +69,12 @@ class SubagentStartTests(unittest.TestCase):
         out = json.loads(r.stdout)["hookSpecificOutput"]
         self.assertEqual(out["hookEventName"], "SubagentStart")
         ctx = out["additionalContext"]
-        self.assertEqual(ctx, "Subagents and in-process teammates never run runtime commands (hc, "
-                              "herdmates, agent-runtime spawn/message/stop); report through your "
-                              "return value or SendMessage.")
+        self.assertEqual(ctx, "Subagents and in-process teammates run only read-only hc commands "
+                              "(get, ls, read, wait, file read…) and never herdmates or the contract's "
+                              "spawn/message/stop verbs; report through your return value or "
+                              "SendMessage.")
+        contract = (SKILL / "references/contract.md").read_text()
+        self.assertIn(ctx, contract)
 
 
 class PreToolUseTests(unittest.TestCase):
@@ -94,7 +97,8 @@ class PreToolUseTests(unittest.TestCase):
                         "cd x && hc send t1 hi", "echo a; hc kill t1", "echo a | hc run x",
                         "FOO=1 hc send t1 hi", "~/.local/bin/hc send t1 hi",
                         "/Users/x/.local/bin/hc run c", "(hc kill t1)", "  hc   send t1 hi",
-                        "hc --json send t7 x", "hc send t7 -h", "hc -x --json keys t7 enter",
+                        "hc --json send t7 x", "hc file write t7 x", "hc file edit f --old a --new b", "hc file",
+                        "hc --json file write f", "hc send t7 -h", "hc -x --json keys t7 enter",
                         "if x; then hc send t7 x; fi", "for i in 1; do hc send t7 x; done",
                         "{ hc send t7 x; }", "! hc send t7 x", "timeout 5 hc send t7 x",
                         "timeout -s KILL 5 hc kill t7", "nice hc send t7 x", "nice -n 5 hc send t7 x",
@@ -108,7 +112,7 @@ class PreToolUseTests(unittest.TestCase):
 
     def test_S19_subagent_readonly_hc_allowed(self):
         for command in ("hc ls", "hc get t7", "hc --json read t9", "hc wait t7", "hc templates",
-                        "hc events", "hc file t7", "hc exec ls", "hc exec echo hi", "hc schema", "hc --help",
+                        "hc events", "hc file read t7", "hc --json file read f", "hc file --help", "hc exec ls", "hc exec echo hi", "hc schema", "hc --help",
                         "hc -h", "hc --version", "hc keys --help", "hc send -h", "hc kill --help",
                         'echo "a\nhc send t7 x"', 'git commit -m "x\nhc kill t7"', 'echo "hc send"',
                         "git commit -m 'hc send'", "grep 'hc kill' file", "ls",
@@ -138,7 +142,7 @@ class PreToolUseTests(unittest.TestCase):
 class WorkerGuardTests(unittest.TestCase):
     """An hc worker (no agent_id, HC_TERMINAL_ID set, non-null parent) vs its parent."""
 
-    TERMINALS = {"t9": {"address": "t9", "parent": "t1"}, "t1": {"address": "t1", "parent": None},
+    TERMINALS = {"t9": {"address": "t9", "parent": "t1"}, "t1": {"address": "t1", "name": "boss", "parent": None},
                  "lead": {"address": "t1", "parent": None},
                  "t12": {"address": "t12", "parent": "t9"}, "kid": {"address": "t12", "parent": "t9"},
                  "t10": {"address": "t10", "parent": "t1"}, "sib": {"address": "t10", "parent": "t1"}}
@@ -183,6 +187,20 @@ class WorkerGuardTests(unittest.TestCase):
                         "cd x && hc interrupt t1", 'bash -lc "hc keys t1 enter"'):
             with self.subTest(command=command):
                 self.assertDenied(command)
+
+    def test_S28_unknown_option_before_target_denied_when_parent_named(self):
+        for command in ("hc keys --on m t1 enter", "hc keys --on m boss enter", "hc kill --zzz boss",
+                        "hc interrupt --timeout 5 t1", "hc send --if idle --force t1 x",
+                        "hc send --mystery v --force boss x"):
+            with self.subTest(command=command):
+                self.assertDenied(command)
+
+    def test_S28_unknown_option_before_target_allowed_when_parent_absent(self):
+        for command in ("hc keys --on m t12 enter", "hc keys --on m ghost enter",
+                        "hc kill --zzz kid", "hc send --mystery v --force t10 x",
+                        "hc interrupt --timeout 5 t12", "hc send --if idle --force t12 x"):
+            with self.subTest(command=command):
+                self.assertAllowed(command)
 
     def test_S28_literal_parent_address_denied_when_target_unresolvable(self):
         terminals = {"t9": self.TERMINALS["t9"]}

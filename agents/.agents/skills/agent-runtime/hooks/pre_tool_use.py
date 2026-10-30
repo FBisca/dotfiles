@@ -19,6 +19,7 @@ VALUE_FLAGS = {"timeout": {"-s", "-k", "--signal", "--kill-after"}, "nice": {"-n
                "sudo": {"-u", "-g", "-C", "-h", "-p"}}
 HC_PARENT_SENSITIVE = {"keys", "interrupt", "kill"}
 HC_VALUE_OPTIONS = {"--if", "--timeout"}
+HC_KNOWN_FLAGS = {"--json", "--force", "--wait", "-h", "--help"}
 HC_TIMEOUT_SECONDS = 2
 SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
 
@@ -110,33 +111,46 @@ def hc_subcommand(args):
     return None
 
 
+def file_read_only(args, sub):
+    rest = [a for a in args[args.index(sub) + 1:] if a != "--json"]
+    return bool(rest) and rest[0] in HC_INFO_FLAGS | {"read", "help"}
+
+
 def help_only(args, sub):
     rest = args[args.index(sub) + 1:]
     return bool(rest) and rest[0] in HC_INFO_FLAGS
 
 
 def sensitive_target(args):
-    """Target of a parent-sensitive hc call (keys/interrupt/kill/send --force); None if not sensitive.
+    """(target, tokens, uncertain) of a parent-sensitive hc call (keys/interrupt/kill/send --force).
 
-    Returns "" when the call is sensitive but names no target."""
+    None when the call is not sensitive. `target` is "" when none is named. `uncertain` is True
+    when an option hc does not document precedes the target, so the target may be an option value;
+    `tokens` are then all words after the subcommand."""
     sub = hc_subcommand(args)
     if sub is None:
         return None
     rest = args[args.index(sub) + 1:]
     if sub == "send":
-        if "--force" not in rest and "--force" not in args:
+        if "--force" not in rest:
             return None
     elif sub not in HC_PARENT_SENSITIVE:
         return None
     skip = False
+    uncertain = False
     for arg in rest:
         if skip:
             skip = False
         elif arg in HC_VALUE_OPTIONS:
             skip = True
-        elif not arg.startswith("-"):
-            return arg
-    return ""
+        elif arg.startswith("-"):
+            if arg not in HC_KNOWN_FLAGS:
+                uncertain = True
+        elif not uncertain:
+            return arg, rest, False
+        else:
+            return arg, rest, True
+    return "", rest, uncertain
 
 
 def hc_get(terminal):
@@ -155,15 +169,21 @@ def is_worker():
     return bool(me) and isinstance(me.get("parent"), str) and bool(me["parent"])
 
 
-def targets_parent(target):
-    """True when this hc worker's parent is the target (fails open when unresolvable)."""
+def targets_parent(target, tokens=(), uncertain=False):
+    """True when this hc worker's parent is the target (fails open when unresolvable).
+
+    When the target is uncertain, deny only if the parent's address or name appears in tokens."""
     own = os.environ.get("HC_TERMINAL_ID")
-    if not own or not target:
+    if not own or not (target or uncertain):
         return False
     me = hc_get(own)
     parent = me.get("parent") if me else None
     if not isinstance(parent, str) or not parent:
         return False
+    if uncertain:
+        parent_info = hc_get(parent) or {}
+        names = {parent, parent_info.get("name")} - {None}
+        return any(token in names for token in tokens)
     if target == parent:
         return True
     reply = hc_get(target)
@@ -179,19 +199,22 @@ def verdict(command, is_subagent):
             continue
         if is_subagent:
             sub = hc_subcommand(args)
+            if sub == "file" and not file_read_only(args, sub):
+                return ("Subagents may only run 'hc file read': file write and edit change the "
+                        "lead's files. Report through your return value or SendMessage.")
             if sub is not None and sub not in HC_ALLOWED and not help_only(args, sub):
                 return ("Subagents must not run 'hc %s': it could act on the lead's terminal. "
                         "Only read-only hc commands (%s) are allowed; report through your "
                         "return value or SendMessage." % (sub, ", ".join(sorted(HC_ALLOWED))))
         else:
-            target = sensitive_target(args)
-            if target is not None:
-                sensitive.append(target)
-    for target in sensitive:
+            call = sensitive_target(args)
+            if call is not None:
+                sensitive.append(call)
+    for target, tokens, uncertain in sensitive:
         if is_worker() and any(c in target for c in "$`"):
             return ("Workers must give hc keys, interrupt, kill and send --force a literal target: "
                     "the target must be a literal address or name, not a shell expansion.")
-        if targets_parent(target):
+        if targets_parent(target, tokens, uncertain):
             return ("Workers must not run keys, interrupt, kill or send --force at their parent: "
                     "it can answer the parent's dialog. Use 'hc send <parent> <result>' to report.")
     return None

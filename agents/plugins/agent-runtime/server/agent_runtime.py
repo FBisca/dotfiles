@@ -172,7 +172,7 @@ def hc_next(name, state):
         return [row("still running", "block until it reports", "wait")]
     if state == "blocked":
         return [row("a person is needed (permission or question)", "read the screen and ask the user", "collect"),
-                row("answer the dialog only with the user's say-so", "hc keys %s <keys>" % name)]
+                row("answering the dialog needs the user's say-so", "ask the user what to answer")]
     if state == "exited":
         return [row("process ended", "read the output", "collect"), row("clean up", "end it", "stop")]
     return [row("state not reported", "check again", "status"), row("see the screen", "read the output", "collect")]
@@ -216,21 +216,79 @@ def hc_app(raw):
     return None
 
 
-def interruption_count(text, spec):
-    """Interrupt markers in the block after the last non-empty prompt line, and in the whole history.
-    (0, 0) when the screen holds no task prompt line."""
-    lines = text.splitlines()
-    last = None
-    for index, line in enumerate(lines):
-        stripped = line.strip()
-        for prompt in spec["prompt"]:
-            body = stripped[len(prompt):].strip() if stripped.startswith(prompt) else ""
-            if body and body not in spec["placeholders"]:
-                last = index
-    if last is None:
-        return 0, 0
-    hit = lambda line: any(marker in line for marker in spec["interrupt"])
-    return sum(map(hit, lines[last + 1:])), sum(map(hit, lines))
+def load_spec(app_name):
+    return json.loads(MARKERS_PATH.read_text(encoding="utf-8")).get(app_name)
+
+
+def is_rule(line):
+    stripped = line.strip()
+    return bool(stripped) and set(stripped) <= {"─", "━", "-"} and len(stripped) >= 8
+
+
+def prompt_body(line, spec):
+    stripped = line.strip()
+    return stripped[len(spec["prompt"]):].strip() if stripped.startswith(spec["prompt"]) else None
+
+
+def history_lines(lines, app_name, spec):
+    """The lines before the input box: Claude's box is the prompt line between the two bottom rules,
+    Codex's is the last prompt line (composer, with placeholder or suggestion text)."""
+    if app_name == "codex":
+        for index in range(len(lines) - 1, -1, -1):
+            if prompt_body(lines[index], spec) is not None:
+                return lines[:index]
+        return lines
+    rules = [i for i, line in enumerate(lines) if is_rule(line)]
+    for upper, lower in zip(rules, rules[1:]):
+        inside = [l for l in lines[upper + 1:lower] if l.strip()]
+        if len(inside) == 1 and prompt_body(inside[0], spec) is not None and not any(
+                prompt_body(l, spec) is not None for l in lines[lower + 1:]):
+            return lines[:upper]
+    return lines
+
+
+def prompt_segments(text, app_name):
+    """[(prompt line, lines after it)] over the history, input box excluded; [] for an unknown app."""
+    spec = load_spec(app_name)
+    if not spec:
+        return []
+    segments = []
+    for line in history_lines(text.splitlines(), app_name, spec):
+        if prompt_body(line, spec):
+            segments.append((line.strip(), []))
+        elif segments:
+            segments[-1][1].append(line)
+        else:
+            segments.append((None, [line]))
+    return segments
+
+
+def last_prompt_block(screen_text, app_name):
+    """Lines after the last real task or message prompt, input box and its footer excluded."""
+    segments = [s for s in prompt_segments(screen_text, app_name) if s[0] is not None]
+    return list(segments[-1][1]) if segments else []
+
+
+def is_marker(line, spec):
+    stripped = line.strip()
+    return stripped.startswith(spec["anchor"]) and any(m in stripped for m in spec["interrupt"])
+
+
+def interruption_count(text, app_name):
+    """(interrupted after the last prompt, distinct interrupt events in the history). Redrawn history
+    repeats identical segments, so a segment equal to the one before it is one event."""
+    spec = load_spec(app_name)
+    segments = prompt_segments(text, app_name)
+    if not spec or not any(s[0] for s in segments):
+        return False, 0
+    tail = any(is_marker(l, spec) for l in segments[-1][1]) if segments[-1][0] else False
+    events, previous = 0, None
+    for prompt, lines in segments:
+        key = (prompt, tuple(l.strip() for l in lines if l.strip()))
+        if key != previous and any(is_marker(l, spec) for l in lines):
+            events += 1
+        previous = key
+    return tail, events
 
 
 def interrupted_rows(name, history):
@@ -244,11 +302,11 @@ def read_interruption(raw, state, name):
     """(state, next rows) when the screen shows an interrupt; None when it does not or cannot be read."""
     cli = hc_app(raw)
     try:
-        spec = json.loads(MARKERS_PATH.read_text(encoding="utf-8")).get(cli)
+        spec = load_spec(cli)
         if not spec or state not in spec["read_states"]:
             return None
         text = json.loads(run_command(["hc", "read", name, "--lines", str(READ_LINES), "--json"]))["text"]
-        tail, history = interruption_count(text, spec)
+        tail, history = interruption_count(text, cli)
     except Exception:
         return None
     return ("interrupted", interrupted_rows(name, history)) if tail else None

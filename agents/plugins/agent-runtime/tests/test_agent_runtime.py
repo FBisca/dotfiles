@@ -357,13 +357,13 @@ class StatusTests(unittest.TestCase):
             with self.subTest(status=status, state=state):
                 self.assertEqual(hc_status(raw(status, state=state))["state"], "exited")
 
-    def test_blocked_next_has_raw_hc_keys_gap_row(self):
+    def test_blocked_next_has_ask_the_user_gap_row(self):
         """agent-runtime/R12"""
         rows = hc_status(raw("blocked"))["next"]
         gaps = [r for r in rows if r["gap"]]
         self.assertTrue(gaps)
         self.assertTrue(all(r["verb"] is None for r in gaps))
-        self.assertTrue(any("hc keys" in r["do"] for r in gaps))
+        self.assertTrue(any("ask the user" in r["do"] for r in gaps))
         self.assertTrue(all(r["verb"] is not None for r in rows if not r["gap"]))
 
     def test_next_rows_lead_with_contract_verbs(self):

@@ -45,6 +45,37 @@ def status_of(raw, text=None, **kw):
         return app.status("hc", "fix", {"HC_TERMINAL_ID": "t0"})
 
 
+def block(name, app_name):
+    return [l.strip() for l in app.last_prompt_block(screen(name), app_name) if l.strip()]
+
+
+class PromptBlockTests(unittest.TestCase):
+    def test_S13_claude_block_skips_the_input_box(self):
+        """agent-runtime-tools/S13"""
+        lines = block("claude_interrupted.txt", "claude-code")
+        self.assertIn("Interrupted", lines[-1])
+        self.assertNotIn("? for shortcuts", " ".join(lines))
+
+    def test_S13_claude_typed_box_text_is_not_the_task_line(self):
+        """agent-runtime-tools/S13"""
+        lines = block("claude_interrupted_typed_box.txt", "claude-code")
+        self.assertTrue(any("Working on it" in l for l in lines))
+        self.assertFalse(any("also add logging" in l for l in lines))
+
+    def test_S13_codex_block_skips_composer_and_suggestion(self):
+        """agent-runtime-tools/S13"""
+        for name in ("codex_working_interrupted.txt", "codex_suggestion_composer.txt"):
+            with self.subTest(name=name):
+                lines = block(name, "codex")
+                self.assertTrue(any("Running npm run build" in l for l in lines))
+                self.assertFalse(any(l.startswith("›") or "gpt-5" in l for l in lines))
+
+    def test_S13_unknown_app_or_no_prompt_gives_empty_block(self):
+        """agent-runtime-tools/S13"""
+        self.assertEqual(app.last_prompt_block("plain text", "claude-code"), [])
+        self.assertEqual(app.last_prompt_block(screen("claude_finished.txt"), "other"), [])
+
+
 class InterruptionTests(unittest.TestCase):
     def test_S11_claude_idle_with_marker_is_interrupted_and_resumable(self):
         """agent-runtime-tools/S11"""
@@ -102,10 +133,32 @@ class InterruptionTests(unittest.TestCase):
         info = status_of(terminal("working", "codex"), screen("codex_resumed.txt"))
         self.assertEqual(info["state"], "working")
 
-    def test_S13_codex_placeholder_prompt_is_not_a_task_line(self):
+    def test_S13_codex_composer_is_not_a_task_line(self):
         """agent-runtime-tools/S13"""
-        info = status_of(terminal("working", "codex"), screen("codex_working_interrupted.txt"))
+        for name in ("codex_working_interrupted.txt", "codex_suggestion_composer.txt"):
+            with self.subTest(name=name):
+                self.assertEqual(status_of(terminal("working", "codex"), screen(name))["state"], "interrupted")
+
+    def test_S11_typed_text_in_claude_box_still_interrupted(self):
+        """agent-runtime-tools/S11"""
+        self.assertEqual(status_of(terminal("idle"), screen("claude_interrupted_typed_box.txt"))["state"],
+                         "interrupted")
+
+    def test_S11_marker_text_printed_mid_line_is_not_a_marker(self):
+        """agent-runtime-tools/S11"""
+        self.assertEqual(status_of(terminal("idle"), screen("claude_printed_marker.txt"))["state"], "idle")
+
+    def test_S12_redrawn_history_counts_one_event(self):
+        """agent-runtime-tools/S12"""
+        info = status_of(terminal("idle"), screen("claude_redrawn_once.txt"))
         self.assertEqual(info["state"], "interrupted")
+        self.assertEqual(info["next"][0]["verb"], "resume")
+
+    def test_blocked_next_has_ask_the_user_gap_not_raw_keys(self):
+        """agent-runtime-tools/S14"""
+        rows = status_of(terminal("blocked"), "")["next"]
+        self.assertFalse(any("hc keys" in r["do"] for r in rows))
+        self.assertTrue(any(r["gap"] and "ask the user" in r["do"] for r in rows))
 
     def test_S14_failed_read_keeps_plain_state(self):
         """agent-runtime-tools/S14"""

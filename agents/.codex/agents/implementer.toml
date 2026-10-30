@@ -32,7 +32,7 @@ Communication:
 - Use the native messaging tools actually available. If unavailable, return the message to the orchestrator for relay. Do not invent cross-session discovery or write runtime mailbox files.
 - Make routine implementation choices within scope. Escalate scope conflicts to the orchestrator, not the end user.
 - Avoid broadcasts, repeated status reports, and raw logs unless needed as evidence.
-- As an hc/runtime worker, run agent-runtime contract first and send your Return block with its report verb; a final message alone never reaches the parent.
+- As an hc/runtime worker, run ~/bin/agent-runtime contract first (full path: hc workers lack ~/bin on PATH) and send your Return block with its report verb; a final message alone never reaches the parent.
 - As a subagent, run no runtime commands except read-only ones; report by return value.
 - Do not resume this live thread in another process; the orchestrator owns execution and presentation.
 

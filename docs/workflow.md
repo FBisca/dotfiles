@@ -34,7 +34,7 @@ Evidence levels: none of the source methods has an RCT; "adoption" means widely 
 - **Idea pipeline backtest v1**: steps 1–3 named 59% of those later decisions (to-spec 40%), mostly by asking more, and routed only 46% to the right owner. FAIL against its 65% / 70% bar.
 - **v2**, after adding owner guidance and the 12-item cap: FAIL, and lower. It named 52% (to-spec 40%), but the items that reach people named about 38%, no better than to-spec. Routing fell to 40%, and that metric compares against who *caused* a decision, not who should have been asked, so it can't be read reliably.
 - **What I keep:** the assumption map, which names 11–19 points more than to-spec in both runs. The simplified flow keeps the map and asks every open row's owner (step 2), cutting the pre-mortem, scoring, top-3, pick and cap: whether owners' answers prevent late decisions needs real conversations, not a backtest.
-- **Real trial**: my next 3–5 ideas, judged 2027-01-29. Keep if at least one is killed or reshaped at a gate with the decider's agreement, my median time to the PRD is ≤ 4 h, and shipped ideas have ≤ 15 late decisions. The rule is in the vault, `01-projects/idea-to-prd/trial.md`.
+- **Real trial**: Finance App V2 plus my next raw ideas (at most 5), judged 2027-01-29. Keep if median active human time is ≤ 4 h, shipped ideas have ≤ 15 late decisions after the PRD, and at least one owner answer changed a build decision before commitment; no kill quota. The rule, with its digest, is in the vault, `01-projects/idea-to-prd/trial.md`.
 
 ## Where things live
 

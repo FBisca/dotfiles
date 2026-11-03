@@ -82,7 +82,7 @@ class ClaudeSettingsTest(unittest.TestCase):
         command = SETTINGS["statusLine"]["command"]
         self.assertIn("$HOME/.claude/statusline.sh", command)
         self.assertTrue((ROOT / "agents/.claude/statusline.sh").is_file())
-        done = subprocess.run(["sh", str(ROOT / "agents/.claude/statusline.sh")], capture_output=True, text=True,
+        done = subprocess.run(["sh", str(ROOT / "agents/.claude/statusline.sh")], capture_output=True, text=True, encoding="utf-8",
                               input=json.dumps({"model": {"display_name": "M"},
                                                 "context_window": {"used_percentage": 50, "context_window_size": 200000}}))
         self.assertEqual(done.returncode, 0)

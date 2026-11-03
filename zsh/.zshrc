@@ -55,6 +55,11 @@ for file in ~/.zsh/*.zsh; do
   source "$file"
 done
 
+# Private, untracked overlays (work aliases etc.)
+for file in ~/.zsh/private/*.zsh(N); do
+  source "$file"
+done
+
 
 export PATH="/opt/homebrew/opt/php@8.2/bin:$PATH"
 export PATH="/opt/homebrew/opt/php@8.1/bin:$PATH"

@@ -24,3 +24,6 @@ agents/.codex/rules/default.rules
 # [skills] claude.ai account skills, re-synced by Claude Code into ~/.claude/skills/synced (Anthropic license forbids redistribution)
 agents/.agents/skills/synced/
 __pycache__/
+
+# [private] machine/work-only content, never public
+zsh/.zsh/private/

@@ -9,3 +9,4 @@
 # Skills are real directories filled by install.sh (symlinks into agent-skills, npx installs).
 ^/\.agents/skills
 ^/\.claude/skills
+^/plugins

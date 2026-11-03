@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Deep-merge JSON or TOML config files into one validated output file.
 
-Usage: merge-config.py {json|toml} OUT BASE [OVERLAY ...]
+Usage: merge-config.py {json|toml} OUT BASE [OVERLAY ...] [--live FILE --keep PATH ...]
 
 Later files win for scalars; tables merge recursively; arrays concatenate (equal items
-appear once). The result is parsed back before it replaces OUT atomically, so a failure
+appear once). A key ending in "!" in a later file replaces the earlier value outright
+instead (`"args!" = [...]` replaces `args`), for argv-like arrays that must not grow.
+
+--live FILE with --keep PATH (dotted, repeatable) carries state a tool wrote at runtime
+into the result: for each PATH present in FILE, FILE is merged over the merged value, so
+the live entries win while base and overlay entries it lacks still appear. The result is parsed back before it replaces OUT atomically, so a failure
 never leaves an invalid or half-written file. Standard library only (Python 3.11+).
 """
 
@@ -23,7 +28,10 @@ def merge(base, over):
     if isinstance(base, dict) and isinstance(over, dict):
         out = dict(base)
         for key, value in over.items():
-            out[key] = merge(base[key], value) if key in base else value
+            if key.endswith("!"):
+                out[key[:-1]] = value
+            else:
+                out[key] = merge(base[key], value) if key in base else value
         return out
     if isinstance(base, list) and isinstance(over, list):
         return base + [item for item in over if item not in base]
@@ -81,15 +89,49 @@ def load(kind, path):
         return json.load(handle) if kind == "json" else tomllib.load(handle)
 
 
+def lookup(data, path):
+    for part in path.split("."):
+        if not isinstance(data, dict) or part not in data:
+            return None
+        data = data[part]
+    return data
+
+
+def keep_live(merged, live, paths):
+    for path in paths:
+        value = lookup(live, path)
+        if value is None:
+            continue
+        parts = path.split(".")
+        target = merged
+        for part in parts[:-1]:
+            target = target.setdefault(part, {})
+        target[parts[-1]] = merge(target.get(parts[-1], {} if isinstance(value, dict) else value), value)
+
+
 def main(argv):
-    if len(argv) < 4 or argv[1] not in ("json", "toml"):
+    args, live, keep = list(argv[1:]), None, []
+    while "--live" in args or "--keep" in args:
+        flag = "--live" if "--live" in args and ("--keep" not in args or args.index("--live") < args.index("--keep")) else "--keep"
+        index = args.index(flag)
+        if index + 1 >= len(args):
+            sys.exit(__doc__)
+        value = args[index + 1]
+        del args[index:index + 2]
+        if flag == "--live":
+            live = value
+        else:
+            keep.append(value)
+    if len(args) < 3 or args[0] not in ("json", "toml"):
         sys.exit(__doc__)
-    kind, out, files = argv[1], argv[2], argv[3:]
+    kind, out, files = args[0], args[1], args[2:]
     try:
         merged = None
         for path in files:
             data = load(kind, path)
-            merged = data if merged is None else merge(merged, data)
+            merged = merge({}, data) if merged is None else merge(merged, data)
+        if live and keep:
+            keep_live(merged, load(kind, live), keep)
         text = json.dumps(merged, indent=2, ensure_ascii=False) + "\n" if kind == "json" else dump_toml(merged)
         reparsed = json.loads(text) if kind == "json" else tomllib.loads(text)
         if reparsed != merged:

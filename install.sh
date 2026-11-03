@@ -92,9 +92,14 @@ is_managed() { # name
   return 1
 }
 
+has_content() { # dir: anything beyond .DS_Store and __pycache__ files?
+  [[ -n "$(find "$1" -type f ! -name .DS_Store ! -path '*/__pycache__/*' -print -quit)" ]]
+}
+
 # Move what a former skills directory held into the new real ones: claude.ai's synced/ stays
 # with Claude, everything else (npx installs) goes to ~/.agents/skills. Skills this setup manages
-# are left behind, since they are re-linked from their repos.
+# are left behind, since they are re-linked from their repos. Directories with nothing but
+# .DS_Store or __pycache__ are not skills and are skipped.
 salvage() { # old_dir claude_dir agents_dir
   local entry name
   [[ -d "$1" ]] || return 0
@@ -102,6 +107,7 @@ salvage() { # old_dir claude_dir agents_dir
     [[ -e "$entry" && ! -L "$entry" ]] || continue
     name="$(basename "$entry")"
     is_managed "$name" && continue
+    if [[ -d "$entry" && "$name" != synced ]] && ! has_content "$entry"; then continue; fi
     if [[ "$name" == synced ]]; then
       [[ -e "$2/synced" ]] || mv "$entry" "$2/synced"
     elif [[ ! -e "$3/$name" ]]; then
@@ -125,6 +131,23 @@ link_skill() { # src dest_dir
   fi
 }
 
+# What salvage left in a former skills directory (stale copies of managed skills, ignored
+# build leftovers such as node_modules) moves to a timestamped backup, never deleted. That
+# also keeps the old checkout directory free of anything Stow could trip over.
+backup_leftovers() { # old_dir...
+  local old entry backup
+  backup="$HOME/.dotfiles-backup/skills-$(date +%Y%m%d%H%M%S)"
+  for old in "$@"; do
+    [[ -d "$old" ]] || continue
+    for entry in "$old"/*; do
+      [[ -e "$entry" && ! -L "$entry" ]] || continue
+      mkdir -p "$backup"
+      mv "$entry" "$backup/$(basename "$entry")"
+      info "moved leftover $entry to $backup"
+    done
+  done
+}
+
 setup_skills() {
   local claude="$HOME/.claude/skills" agents="$HOME/.agents/skills"
   local olds=() dir old src entry name
@@ -144,6 +167,7 @@ setup_skills() {
   for old in "${olds[@]}"; do
     salvage "$old" "$claude" "$agents"
   done
+  backup_leftovers "${olds[@]}"
 
   for dir in "$claude" "$agents"; do
     for entry in "$dir"/*; do # drop links whose skill has been removed
@@ -177,14 +201,26 @@ setup_runtime() {
 }
 
 # --- generated config -----------------------------------------------------------
+# Tables the tools write into their own live config at runtime. They are carried over from
+# the live file (live wins, base and overlay entries it lacks stay), so re-running the
+# installer never reverts them: Codex's trusted hook hashes, project trust, model notices
+# and plugin state; Claude's enabled plugins, marketplaces and "always allow" permissions.
+CODEX_RUNTIME_KEYS="projects hooks.state notice tui plugins marketplaces"
+CLAUDE_RUNTIME_KEYS="enabledPlugins extraKnownMarketplaces permissions"
+
 # Live settings are base + private overlay, deep-merged by scripts/merge-config.py (arrays
 # concatenate). The result replaces the live file atomically, so it is never half-written.
-generate_config() { # kind base live overlay...
-  local kind="$1" base="$2" live="$3" new
-  shift 3
+generate_config() { # kind base live keep_paths overlay...
+  local kind="$1" base="$2" live="$3" keep="$4" new path args=()
+  shift 4
   mkdir -p "$(dirname "$live")"
   new="$live.new.$$"
-  python3 "$ROOT/scripts/merge-config.py" "$kind" "$new" "$base" "$@" || {
+  # Runtime-written state in a regular live file wins for the paths in $keep.
+  if [[ -f "$live" && ! -L "$live" ]]; then
+    args+=(--live "$live")
+    for path in $keep; do args+=(--keep "$path"); done
+  fi
+  python3 "$ROOT/scripts/merge-config.py" "$kind" "$new" "$base" "$@" ${args[@]+"${args[@]}"} || {
     rm -f "$new"
     die "could not generate $live; it was left untouched"
   }
@@ -204,12 +240,12 @@ setup_config() {
     overlay=("$LEGACY_CLAUDE_OVERLAY")
   fi
   generate_config json "$ROOT/agents/.claude/settings.base.json" "$HOME/.claude/settings.json" \
-    ${overlay[@]+"${overlay[@]}"}
+    "$CLAUDE_RUNTIME_KEYS" ${overlay[@]+"${overlay[@]}"}
 
   overlay=()
   if [[ -f "$DOTFILES_PRIVATE/codex-config.toml" ]]; then overlay=("$DOTFILES_PRIVATE/codex-config.toml"); fi
   generate_config toml "$ROOT/agents/.codex/config.base.toml" "$HOME/.codex/config.toml" \
-    ${overlay[@]+"${overlay[@]}"}
+    "$CODEX_RUNTIME_KEYS" ${overlay[@]+"${overlay[@]}"}
 }
 
 # --- stow -----------------------------------------------------------------------
@@ -239,6 +275,9 @@ setup_config
 if [[ "$DO_STOW" -eq 1 ]]; then stow_modules; fi
 
 ok "done"
+if grep -q '"dotfiles"' "$HOME/.claude/plugins/known_marketplaces.json" 2>/dev/null; then
+  warn "the old 'dotfiles' Claude marketplace is still registered; remove it once with: claude plugin marketplace remove dotfiles"
+fi
 cat <<'EOF'
 Next steps:
   1. Restart your terminal, or: source ~/.zshrc

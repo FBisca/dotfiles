@@ -53,18 +53,27 @@ cd ~/developer/dotfiles
 `install.sh` does five things, in order:
 
 1. Clones `agent-skills` and `agent-runtime` into `~/developer` if they are missing.
-2. Makes `~/.claude/skills` and `~/.agents/skills` real directories and symlinks every skill into both, so `npx skills add` installs and claude.ai's synced skills never write into a repo. An older symlinked layout is migrated and its contents are moved, never deleted.
+2. Makes `~/.claude/skills` and `~/.agents/skills` real directories and symlinks every skill into both, so `npx skills add` installs and claude.ai's synced skills never write into a repo. An older symlinked layout is migrated: claude.ai's `synced/` and other real skills are moved over, and stale copies or build leftovers go to a timestamped folder under `~/.dotfiles-backup`. Nothing is deleted. If the old `dotfiles` Claude marketplace is still registered, the installer prints the one command that removes it.
 3. Runs agent-runtime's installer, which links its shims into `~/.local/bin`.
 4. Generates `~/.claude/settings.json` and `~/.codex/config.toml` from the tracked base files plus the private overlay (below).
 5. Stows every module.
 
-Options: `--upstream` also reinstalls the upstream skills that `agent-skills` lists in its lock file (`scripts/install-upstream.sh`); `--no-stow` skips Stow. Directories and clone URLs are overridable with `AGENT_SKILLS_DIR`, `AGENT_RUNTIME_DIR`, `AGENT_FLEET_DIR`, `AGENT_SKILLS_REPO` and `AGENT_RUNTIME_REPO` (see `./install.sh --help`).
+Options: `--upstream` also reinstalls the upstream skills that `agent-skills` lists in its lock file (`scripts/install-upstream.sh`), such as `impeccable`, the current upstream of the former `frontend-design` skill; `--no-stow` skips Stow. Directories and clone URLs are overridable with `AGENT_SKILLS_DIR`, `AGENT_RUNTIME_DIR`, `AGENT_FLEET_DIR`, `AGENT_SKILLS_REPO` and `AGENT_RUNTIME_REPO` (see `./install.sh --help`).
 
 ### Private overlay
 
 Public base config lives in `agents/.claude/settings.base.json` and `agents/.codex/config.base.toml`. Anything machine- or work-specific goes in an overlay kept outside this repo: `claude-settings.json` and `codex-config.toml` under `$DOTFILES_PRIVATE` (default `~/developer/agent-fleet/overlay`). Claude's overlay also falls back to `~/.claude/private-overlay/settings.overlay.json`. The overlay is optional; without it the live files equal the base.
 
-`scripts/merge-config.py` deep-merges them: tables merge, arrays concatenate, later values win. The result is parsed back before it atomically replaces the live file, so a bad overlay fails the install and leaves the existing file alone. If a live file differs from what was generated (Codex rewrites its own config), the previous copy is saved next to it as `*.bak-<timestamp>` first. Both live files are generated, so edit the base or the overlay, not them.
+`scripts/merge-config.py` deep-merges them: tables merge, arrays concatenate, later values win. A key ending in `!` in the overlay (`"args!" = [...]`) replaces the base value instead of concatenating, for argv-like arrays that must not grow. The result is parsed back before it atomically replaces the live file, so a bad overlay fails the install and leaves the existing file alone.
+
+Both live files are generated, so edit the base or the overlay, not them. The tools do write into their own config at runtime, and re-running the installer does not revert that: when the live file is a regular file, these tables are carried over from it, live entries winning and base or overlay entries it lacks staying.
+
+| File | Carried over from the live file |
+|---|---|
+| `~/.codex/config.toml` | `projects` (trust), `hooks.state` (trusted hook hashes), `notice`, `tui`, `plugins`, `marketplaces` |
+| `~/.claude/settings.json` | `enabledPlugins`, `extraKnownMarketplaces`, `permissions` |
+
+Anything else in a live file, including a `model` changed mid-session, is regenerated from the base and overlay. If the result differs from the live file, the previous copy is saved next to it as `*.bak-<timestamp>` first.
 
 ## Agent tooling
 

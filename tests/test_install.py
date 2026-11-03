@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -60,7 +61,29 @@ class SkillsLinkingTest(HomeCase):
         self.assertEqual((agents / "upstream-thing/SKILL.md").read_text(), "installed by npx")
         self.assertEqual((claude / "upstream-thing/SKILL.md").read_text(), "installed by npx")
         self.assertEqual((claude / "alpha").resolve(), self.skills / "skills" / "alpha")
-        self.assertTrue((old / "alpha").is_dir(), "redundant stale copy is left in place, not deleted")
+        self.assertFalse((old / "alpha").exists())
+        moved = list((self.home / ".dotfiles-backup").glob("skills-*/alpha"))
+        self.assertEqual(len(moved), 1, "the stale copy is backed up, not deleted")
+
+    def test_S7_junk_only_dirs_are_not_salvaged_as_skills(self):
+        old = self.tmp / "old-skills"
+        (old / "frontend-design" / "__pycache__").mkdir(parents=True)
+        (old / "frontend-design" / "__pycache__" / "x.pyc").write_text("")
+        (old / "frontend-design" / ".DS_Store").write_text("")
+        (self.home / ".agents").mkdir()
+        (self.home / ".agents/skills").symlink_to(old)
+        self.install()
+        self.assertFalse((self.home / ".agents/skills/frontend-design").exists())
+        self.assertFalse((self.home / ".claude/skills/frontend-design").exists())
+
+    def test_S7_hints_to_remove_the_old_marketplace_only_when_it_is_registered(self):
+        done = self.install()
+        self.assertNotIn("marketplace remove dotfiles", done.stdout + done.stderr)
+        known = self.home / ".claude/plugins/known_marketplaces.json"
+        known.parent.mkdir(parents=True)
+        known.write_text('{"dotfiles": {"installLocation": "x"}}')
+        done = self.install()
+        self.assertIn("claude plugin marketplace remove dotfiles", done.stdout + done.stderr)
 
     def test_S7_migrates_a_dangling_symlink_using_the_old_dotfiles_skills_dir(self):
         (self.home / ".claude").mkdir()
@@ -92,7 +115,53 @@ class SkillsLinkingTest(HomeCase):
         self.assertFalse((self.tmp / "upstream.ran").exists())
         self.install("--upstream")
         self.assertTrue((self.tmp / "upstream.ran").exists())
-        self.assertIn("install-upstream.sh", (ROOT / "README.md").read_text())
+        readme = (ROOT / "README.md").read_text()
+        self.assertIn("install-upstream.sh", readme)
+        self.assertRegex(readme, r"impeccable.*frontend-design")
+
+
+@unittest.skipUnless(shutil.which("stow"), "GNU Stow not installed")
+class StowMigrationTest(HomeCase):
+    """install.sh WITH stow, in a temp HOME migrated from the old layout, leftovers included."""
+
+    def setUp(self):
+        super().setUp()
+        self.repo = self.tmp / "dotfiles"
+        shutil.copytree(ROOT, self.repo, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+        (self.repo / ".git").write_text("gitdir: elsewhere\n")  # install.sh only checks that it exists
+
+    def run_stow_install(self):
+        done = subprocess.run([str(self.repo / "install.sh")], env=self.env(), cwd=self.repo, capture_output=True,
+                              text=True, timeout=180)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        return done
+
+    def test_S7_stow_runs_cleanly_over_ignored_leftovers_of_the_old_skills_dir(self):
+        old = self.repo / "agents/.agents/skills"
+        (old / "alpha" / "narrator" / "node_modules" / "pkg").mkdir(parents=True)
+        (old / "alpha" / "narrator" / "node_modules" / "pkg" / "index.js").write_text("x")
+        (old / "alpha" / "scripts" / "__pycache__").mkdir(parents=True)
+        (old / "alpha" / "scripts" / "__pycache__" / "m.pyc").write_text("")
+        (old / "synced" / "claude-ai").mkdir(parents=True)
+        (old / "synced" / "claude-ai" / "SKILL.md").write_text("keep")
+        (old / "frontend-design").mkdir()
+        (old / "frontend-design" / ".DS_Store").write_text("")
+        for name in (".claude", ".agents"):
+            (self.home / name).mkdir()
+            (self.home / name / "skills").symlink_to(old)
+        (self.home / ".claude/settings.json").symlink_to(self.repo / "agents/.claude/settings.base.json")
+        self.run_stow_install()
+        again = self.run_stow_install()  # and a second run is still clean
+        self.assertNotIn("moved leftover", again.stdout)
+        claude = self.home / ".claude/skills"
+        self.assertFalse(claude.is_symlink())
+        self.assertEqual((claude / "alpha").resolve(), self.skills / "skills" / "alpha")
+        self.assertEqual((claude / "synced/claude-ai/SKILL.md").read_text(), "keep")
+        self.assertFalse((claude / "frontend-design").exists())
+        backups = list((self.home / ".dotfiles-backup").glob("skills-*/alpha/narrator/node_modules/pkg/index.js"))
+        self.assertEqual(len(backups), 1, "ignored leftovers are backed up, never deleted")
+        self.assertTrue((self.home / ".claude/statusline.sh").is_symlink(), "other agent files are still stowed")
+        self.assertFalse((self.home / ".claude/settings.json").is_symlink())
 
 
 class RuntimeWiringTest(HomeCase):
@@ -220,6 +289,54 @@ class ConfigMergeTest(HomeCase):
         done = merge("toml", out, src)
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(tomllib.loads(out.read_text()), tomllib.loads(src.read_text()))
+
+    def test_S9_codex_runtime_state_in_the_live_file_survives_a_rerun(self):
+        overlay = self.overlay(codex='[projects."/overlay/proj"]\ntrust_level = "trusted"\n')
+        self.install(DOTFILES_PRIVATE=overlay)
+        live = self.home / ".codex/config.toml"
+        live.write_text(live.read_text() + '\n[projects."/live/proj"]\ntrust_level = "trusted"\n'
+                        '[hooks.state."cfg:pre_tool_use:0:0"]\ntrusted_hash = "sha256:new"\nenabled = true\n'
+                        '[notice]\nseen = true\n[plugins."x@y"]\nenabled = true\n')
+        self.install(DOTFILES_PRIVATE=overlay)
+        config = tomllib.loads(live.read_text())
+        self.assertEqual(sorted(config["projects"]), ["/live/proj", "/overlay/proj"])
+        self.assertEqual(config["hooks"]["state"]["cfg:pre_tool_use:0:0"]["trusted_hash"], "sha256:new")
+        self.assertTrue(config["notice"]["seen"] and config["plugins"]["x@y"]["enabled"])
+        self.assertEqual(config["hooks"]["PreToolUse"], self.base()[1]["hooks"]["PreToolUse"], "base still wins elsewhere")
+
+    def test_S9_only_runtime_tables_come_from_the_live_file(self):
+        self.install()
+        live = self.home / ".codex/config.toml"
+        live.write_text(live.read_text().replace('model_reasoning_effort = "medium"', 'model_reasoning_effort = "low"'))
+        self.install()
+        self.assertEqual(tomllib.loads(live.read_text())["model_reasoning_effort"], "medium")
+
+    def test_S9_claude_runtime_settings_survive_a_rerun(self):
+        self.install()
+        live = self.home / ".claude/settings.json"
+        data = json.loads(live.read_text())
+        data["enabledPlugins"]["extra@market"] = True
+        data["permissions"]["allow"].append("Bash(ls:*)")
+        data["model"] = "changed-in-session"
+        live.write_text(json.dumps(data))
+        self.install()
+        settings = json.loads(live.read_text())
+        self.assertIs(settings["enabledPlugins"]["extra@market"], True)
+        self.assertIn("Bash(ls:*)", settings["permissions"]["allow"])
+        self.assertIn("mcp__notion", settings["permissions"]["allow"])
+        self.assertEqual(settings["model"], self.base()[0]["model"], "settings the base owns are regenerated")
+
+    def test_S9_a_trailing_bang_key_replaces_instead_of_concatenating(self):
+        a, b, out = self.tmp / "a.json", self.tmp / "b.json", self.tmp / "out.json"
+        a.write_text(json.dumps({"args": ["a", "b"], "t": {"list": [1]}, "keep": [1]}))
+        b.write_text(json.dumps({"args!": ["c"], "t": {"list!": [2]}, "keep": [2]}))
+        self.assertEqual(merge("json", out, a, b).returncode, 0)
+        self.assertEqual(json.loads(out.read_text()), {"args": ["c"], "t": {"list": [2]}, "keep": [1, 2]})
+        toml_a, toml_b = self.tmp / "a.toml", self.tmp / "b.toml"
+        toml_a.write_text('args = ["a"]\n')
+        toml_b.write_text('"args!" = ["z"]\n')
+        self.assertEqual(merge("toml", self.tmp / "o.toml", toml_a, toml_b).returncode, 0)
+        self.assertEqual(tomllib.loads((self.tmp / "o.toml").read_text()), {"args": ["z"]})
 
     def test_S9_merge_never_writes_an_invalid_result(self):
         bad, out = self.tmp / "bad.json", self.tmp / "out.json"

@@ -46,7 +46,10 @@ jobs:
           python-version: "3.12"
       - name: Install zsh and jq
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh jq
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh jq stow
+      - name: Install stow
+        if: runner.os == 'macOS'
+        run: brew install stow
       - name: Check out agent-runtime for the contract tests
         run: git clone --depth 1 https://github.com/FBisca/agent-runtime.git "$RUNNER_TEMP/agent-runtime"
       - name: Contract and installer tests

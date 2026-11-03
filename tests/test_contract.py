@@ -69,7 +69,7 @@ class ClaudeSettingsTest(unittest.TestCase):
     def test_R87_marketplace_is_a_home_relative_directory_source(self):
         market = SETTINGS["extraKnownMarketplaces"]["agent-runtime"]["source"]
         self.assertEqual(market, {"source": "directory", "path": "~/developer/agent-runtime"})
-        for bad in ("/Users/", "/home/", str(Path.home())):
+        for bad in ("/" + "Users/", "/" + "home/", str(Path.home())):
             self.assertNotIn(bad, json.dumps(SETTINGS))
 
     def test_base_settings_hold_nothing_machine_specific(self):

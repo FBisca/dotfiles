@@ -73,7 +73,7 @@ class PublicRepoTest(unittest.TestCase):
                 text = (ROOT / path).read_text()
             except (UnicodeDecodeError, IsADirectoryError):
                 continue
-            self.assertIsNone(re.search(r"/Users/\w|/home/\w", text), path)
+            self.assertIsNone(re.search(r"/(?:Users|home)/\w", text), path)
 
     def test_no_dangling_symlinks_gitlinks_or_ds_store(self):
         files = tracked()

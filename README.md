@@ -1,155 +1,102 @@
-# 🛠️ Dotfiles
+# dotfiles
 
-A modular, minimal dotfiles setup managed with [GNU Stow](https://www.gnu.org/software/stow/).
-Each tool lives in its own directory and is easy to track, modify, or replace.
+[![ci](https://github.com/FBisca/dotfiles/actions/workflows/ci.yml/badge.svg)](https://github.com/FBisca/dotfiles/actions/workflows/ci.yml)
 
-Special thanks to [rodrigopsasaki](https://github.com/rodrigopsasaki), the original author of the repository this project was forked from.
+My macOS setup, managed with [GNU Stow](https://www.gnu.org/software/stow/): shell, editor, git, terminal and the configuration for Claude Code and Codex. One `./install.sh` rebuilds it on a new machine, and it is idempotent, so it is also how I update this one.
 
-## 🧭 Table of Contents
+It started as a fork of [rodrigopsasaki](https://github.com/rodrigopsasaki)'s dotfiles; thanks to him for the original structure.
 
-- [🧩 Getting Started](#-getting-started)
-- [🧰 Requirements](#-requirements)
-- [🛠️ Tools](#-tools)
-  - [🔧 Git](#-git)
-  - [🧩 Neovim](#-neovim)
-  - [🐚 Zsh](#-zsh)
-  - [📦 mise](#-mise)
-  - [🐙 GitHub CLI (gh)](#-github-cli-gh)
-- [📁 Layout](#-layout)
-- [🧠 Philosophy](#-philosophy)
-- [🔁 Feature workflow](docs/workflow.md): idea → PRD → plan → build, the skill behind each step and the method it comes from
+## What is here
 
-## ⚡ Getting Started
+| Module | Contents |
+|---|---|
+| `git` | aliases, delta diffs, scoped identity overrides ([readme](git/README.md)) |
+| `zsh` | modular config sourced from `.zshrc`, fzf, a git-ignored secrets loader ([readme](zsh/README.md)) |
+| `nvim` | Lua config; lazy.nvim bootstraps itself ([readme](nvim/README.md)) |
+| `mise`, `gh`, `fzf`, `env` | runtimes, GitHub CLI, fuzzy finder, environment ([mise](mise/README.md), [gh](gh/README.md)) |
+| `kitty`, `wezterm`, `slack` | terminal and app settings |
+| `agents` | Claude Code and Codex: base settings, custom agents, status line, instructions |
+| `bin` | small scripts on `PATH`, e.g. `wait-checks` (block until a PR's checks finish) |
 
-### Quick Install
+## How it fits together
 
-```bash
-git clone https://github.com/Fbisca/dotfiles ~/.dotfiles
-cd ~/.dotfiles
+Agent tooling is split across repositories so each part can be used on its own. This repo wires them to one machine.
+
+```mermaid
+flowchart LR
+    D[dotfiles<br/>install.sh] -->|stow| H["~ (shell, git, editor, agent homes)"]
+    D -->|clone + link| S[agent-skills<br/>skills and workflow]
+    D -->|clone + install.sh| R[agent-runtime<br/>MCP server and hooks]
+    S -->|symlinks| K["~/.claude/skills<br/>~/.agents/skills"]
+    R -->|shims| B["~/.local/bin"]
+    R -->|directory marketplace| C[Claude Code]
+    B --> X[Codex]
+    D -->|base config| M{merge}
+    O[(private overlay<br/>not public)] -.->|machine and work specifics| M
+    M --> L["~/.claude/settings.json<br/>~/.codex/config.toml"]
+```
+
+- [`agent-skills`](https://github.com/FBisca/agent-skills): the skills that take an idea to a spec, a plan and an orchestrated build.
+- [`agent-runtime`](https://github.com/FBisca/agent-runtime): the MCP server that lets Claude Code and Codex delegate work to other agents.
+- A private overlay holds what must not be public: auto-mode context, work paths, machine state.
+
+## Install
+
+Requirements: macOS, [`stow`](https://www.gnu.org/software/stow/), `git`, `python3` 3.11+, and [`gh`](https://cli.github.com/) authenticated with `gh auth login`.
+
+```sh
+git clone https://github.com/FBisca/dotfiles ~/developer/dotfiles
+cd ~/developer/dotfiles
 ./install.sh
 ```
 
-## 🔧 Requirements
+`install.sh` does five things, in order:
 
-- You have [`stow`](https://www.gnu.org/software/stow/) installed.
-- You have [`git`](https://git-scm.com/) installed.
-- You have [`gh`](https://cli.github.com/) installed and authenticated via `gh auth login`.
-- Your system supports symlinks (tested on macOS ARM with GNU Stow).
+1. Clones `agent-skills` and `agent-runtime` into `~/developer` if they are missing.
+2. Makes `~/.claude/skills` and `~/.agents/skills` real directories and symlinks every skill into both, so `npx skills add` installs and claude.ai's synced skills never write into a repo. An older symlinked layout is migrated and its contents are moved, never deleted.
+3. Runs agent-runtime's installer, which links its shims into `~/.local/bin`.
+4. Generates `~/.claude/settings.json` and `~/.codex/config.toml` from the tracked base files plus the private overlay (below).
+5. Stows every module.
 
-`install.sh` creates `~/.claude`, `~/.codex` and `~/.agents` as real folders before stowing, so tool state (sessions, credentials, history) stays out of this repo and only the tracked entries are linked. If those folders already hold tracked files on a machine, move them into this repo first or run `stow --adopt agents` once.
+Options: `--upstream` also reinstalls the upstream skills that `agent-skills` lists in its lock file (`scripts/install-upstream.sh`); `--no-stow` skips Stow. Directories and clone URLs are overridable with `AGENT_SKILLS_DIR`, `AGENT_RUNTIME_DIR`, `AGENT_FLEET_DIR`, `AGENT_SKILLS_REPO` and `AGENT_RUNTIME_REPO` (see `./install.sh --help`).
 
-## 📦 Tools
+### Private overlay
 
-### 🔧 Git
+Public base config lives in `agents/.claude/settings.base.json` and `agents/.codex/config.base.toml`. Anything machine- or work-specific goes in an overlay kept outside this repo: `claude-settings.json` and `codex-config.toml` under `$DOTFILES_PRIVATE` (default `~/developer/agent-fleet/overlay`). Claude's overlay also falls back to `~/.claude/private-overlay/settings.overlay.json`. The overlay is optional; without it the live files equal the base.
 
-[→ See full README](./git/README.md)
+`scripts/merge-config.py` deep-merges them: tables merge, arrays concatenate, later values win. The result is parsed back before it atomically replaces the live file, so a bad overlay fails the install and leaves the existing file alone. If a live file differs from what was generated (Codex rewrites its own config), the previous copy is saved next to it as `*.bak-<timestamp>` first. Both live files are generated, so edit the base or the overlay, not them.
 
-Opinionated `git` setup with dozens of helpful aliases, delta-powered diffs, and scoped overrides.
+## Agent tooling
 
-```bash
-# Example Aliases
-git s       # short status
-git l       # graph log
-git go foo  # checkout or create branch 'foo'
-git ca      # add all and commit verbosely
-git all pull  # pull across all sub-repos
+Claude Code and Codex are configured from `agents/`:
+
+- `settings.base.json` and `config.base.toml`: shared defaults, merged with the overlay as above.
+- `agents/` in each home: custom agents, such as the `implementer` that orchestrated builds delegate to.
+- `.claude/statusline.sh`: the status line (model, context bar, tokens used).
+- `.agents/AGENTS.md`: shared instructions, linked into both tools.
+
+Skills and the workflow they implement come from [`agent-skills`](https://github.com/FBisca/agent-skills); its [workflow guide](https://github.com/FBisca/agent-skills/blob/main/docs/workflow.md) explains idea, spec, plan, build. Delegation comes from [`agent-runtime`](https://github.com/FBisca/agent-runtime): Claude loads the plugin in place from `~/developer/agent-runtime` as a directory marketplace, so edits apply at the next Claude/Codex session. There is no update step, and version bumps are record-only. Codex reaches the same server and PreToolUse hook through `$HOME/.local/bin/agent-runtime-mcp` and `agent-runtime-hook`. The `codex()` shell wrapper adds `--no-daemon` inside Herdr terminals.
+
+## Tests and CI
+
+```sh
+python3 -B -m unittest discover -s tests
 ```
 
----
+The tests are contracts between this repo and what it consumes: the Codex wiring and Claude settings that load the runtime, the implementer agents' tool lists, the `codex()` wrapper, and `install.sh` run against a temporary `HOME` (skills linking and migration, config merge with and without an overlay). Set `AGENT_RUNTIME_SRC` to a local `agent-runtime` checkout to also run the tests that launch the real server. CI runs these, `shellcheck` on `install.sh` and `bin/`, and a `stow -n` dry run on macOS.
 
-### 🐚 Zsh
-
-[→ See full README](./zsh/README.md)
-
-Zsh configuration split into modular files and sourced from `.zshrc`. Includes:
-
-- Plugin support (autosuggestions, syntax highlighting)
-- FZF integration
-- Clean alias and path management
-
----
-
-### 🧩 Neovim
-
-[→ See full README](./nvim/README.md)
-
-Neovim configuration written in Lua. Fast startup, modern plugins, sane defaults.
-
----
-
-### 📦 mise
-
-[→ See full README](./mise/README.md)
-
-Handles language runtime management with [`mise`](https://mise.jdx.dev/).
-
----
-
-### 🐙 GitHub CLI (gh)
-
-[→ See full README](./gh/README.md)
-
-GitHub CLI configuration. Tokens and credentials are not tracked in git.
-
-You must run:
-
-```bash
-gh auth login
-```
-
-...to authenticate before using the `gh` command set.
-
----
-
-### 🤖 Agent Tooling
-
-Shared agent configuration is also tracked for local CLI tools:
-
-- `agents/.claude` stores shared Claude Code settings plus custom agents and commands.
-- `agents/.codex` stores shared Codex defaults and command rules. Sensitive MCP credentials stay in local overrides.
-- `agents/.agents` stores every skill: `~/.agents/skills` (Codex) and `~/.claude/skills` (Claude Code) are both one link to `agents/.agents/skills`, so no agent keeps its own copy. Skills installed with `npx skills add -g` land here too and show up as git changes.
-- `agents/plugins/agent-runtime` is a Claude Code plugin (also wired into Codex through `agents/.codex/config.toml`) that serves the `agent-runtime` MCP tools for delegating to other agents: `spawn`, `message`, `resume`, `report`, `wait`, `task`, `collect`, `stop`, `status`, `list`. Its hooks keep subagents and workers off commands that would reach their lead. `agent-runtime resolve|status|list` remain as debug commands.
-  - **Dispatch upgrade:** `spawn`/`resume` return promptly with `worker_id` and `assignment_id`; one `wait(all)` returns reports, assignment states, peer messages and a `receipt` to pass on the next call. Workers use `report(kind=progress|complete|blocked|decision, assignment_id)`; `task` manages shared tasks (`cursor` pages `list`), and `spawn`/`resume` take an optional `task_id` to link one. `status`/`collect` are diagnostics only; `status`, `list`, `collect` and `task list` return inbox messages only when the call carries a `receipt` (`wait` and mutating tools always do). `stop` also works on workers whose terminal vanished.
-  - **Activation:** structured dispatch is on through `AGENT_RUNTIME_DISPATCH=1` in `agents/plugins/agent-runtime/.mcp.json` (Claude) and `[mcp_servers.agent-runtime.env]` in `agents/.codex/config.toml` (Codex). Both hosts use a 600s tool timeout (`"timeout": 600000`, `tool_timeout_sec = 600`); `wait` caps at 590s. Absent the variable the server still runs the legacy transport.
-  - **Install:** the tracked `dotfiles` marketplace is a directory source at `~/developer/dotfiles/agents`, so Claude loads the plugin in place from the checkout. Edits apply at the next Claude/Codex session; there is no update step, and version bumps are record-only.
-  - **Store:** `${XDG_STATE_HOME:-~/.local/state}/agent-runtime/dispatch.sqlite3` (mode 0600, schema-versioned).
-  - **Rollback:** stop the team, disable the plugin or revert these config lines, keep the store for recovery. Restart every Claude/Codex session (and the plugin) afterwards. Queued structured reports are not translated into legacy text; once a worker's server restarts in legacy mode its report ignores `kind`/`assignment_id`.
-  - **Migration:** workers live before the upgrade keep their old MCP process and don't know `report(kind, assignment_id)`; `resume` does not restart it, so `stop` them and `spawn` a fresh assignment.
-- `agents/.stow-local-ignore` lists what Stow skips in this package (Stow reads ignore files per package, not from the repo root).
-
-Install everything with `stow agents` or let `./install.sh` treat it like any other module.
-
----
-
-## 📁 Layout
-
-Each tool has its own folder. Use `stow <tool>` to activate.
+## Layout
 
 ```
-~/.dotfiles/
-├── git/
-├── zsh/
-├── nvim/
-├── mise/
-├── gh/
-├── kitty/
-├── wezterm/
-├── fzf/
-├── env/
-├── slack/
-├── agents/
-│ ├── .agents/
-│ ├── .claude/
-│ └── .codex/
-└── bin/        # scripts on PATH via ~/bin (e.g. wait-checks)
+dotfiles/
+├── agents/      # Claude Code and Codex config, agents, status line
+├── bin/         # scripts on PATH via ~/bin
+├── scripts/     # merge-config.py
+├── tests/       # contract and installer tests
+├── git/ zsh/ nvim/ mise/ gh/ fzf/ env/ kitty/ wezterm/ slack/
+└── install.sh
 ```
 
----
+## License
 
-## 🧠 Philosophy
-
-- **Modular** — everything lives in its own namespace
-- **Safe** — secrets go in private overrides and are gitignored
-- **Explicit** — no surprises, no clever magic
-
----
+[MIT](LICENSE)

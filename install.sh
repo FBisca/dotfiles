@@ -198,6 +198,15 @@ setup_runtime() {
   [[ -x "$AGENT_RUNTIME_DIR/install.sh" ]] || die "$AGENT_RUNTIME_DIR/install.sh not found"
   BIN_DIR="$HOME/.local/bin" "$AGENT_RUNTIME_DIR/install.sh" >/dev/null
   ok "agent-runtime shims linked into $HOME/.local/bin"
+  # Claude only registers a directory marketplace on an explicit add; settings alone are not enough.
+  if command -v claude >/dev/null 2>&1 && [[ -d "$HOME/.claude/plugins" ]] && ! claude plugin list 2>/dev/null | grep -q 'agent-runtime@agent-runtime'; then
+    claude plugin marketplace add "$AGENT_RUNTIME_DIR" >/dev/null 2>&1 || warn "could not add the agent-runtime marketplace"
+    if claude plugin install agent-runtime@agent-runtime >/dev/null 2>&1; then
+      ok "agent-runtime plugin installed"
+    else
+      warn "install it once with: claude plugin install agent-runtime@agent-runtime"
+    fi
+  fi
 }
 
 # --- generated config -----------------------------------------------------------

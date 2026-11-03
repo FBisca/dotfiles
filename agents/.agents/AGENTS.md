@@ -1,1 +1,2 @@
 - When reporting information to me, be extremely concise and sacrifice grammar for the sake of concision.
+- When I say "ask Codex" or "use Codex", delegate via agent-runtime `spawn` with `cli: "codex"`, then `wait(target="all")`.

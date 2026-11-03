@@ -10,7 +10,7 @@ fill=$((pct * 10 / 100))
 bar=""
 i=0
 while [ "$i" -lt 10 ]; do # a loop, not tr: tr would split the multibyte glyphs in the C locale
-  if [ "$i" -lt "$fill" ]; then bar="$bar█"; else bar="$bar░"; fi
+  if [ "$i" -lt "$fill" ]; then bar="${bar}█"; else bar="${bar}░"; fi
   i=$((i + 1))
 done
 k() { awk -v n="$1" 'BEGIN { if (n >= 1000000) printf "%.1fM", n/1000000; else printf "%.0fk", n/1000 }'; }

@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck install.sh bin/bin/* agents/.claude/statusline.sh
+      - name: zsh syntax
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq zsh
+          for f in zsh/.zshrc zsh/.zsh/*.zsh; do zsh -n "$f"; done
+
+  stow:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install stow
+      - name: stow dry run into a clean HOME
+        run: |
+          export HOME="$(mktemp -d)"
+          mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents"
+          for module in git zsh nvim mise gh kitty wezterm fzf env slack agents bin; do
+            stow -n -v -t "$HOME" "$module"
+          done
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install zsh and jq
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh jq stow
+      - name: Install stow
+        if: runner.os == 'macOS'
+        run: brew install stow
+      - name: Check out agent-runtime for the contract tests
+        run: git clone --depth 1 https://github.com/FBisca/agent-runtime.git "$RUNNER_TEMP/agent-runtime"
+      - name: Contract and installer tests
+        env:
+          AGENT_RUNTIME_SRC: ${{ runner.temp }}/agent-runtime
+        run: python3 -B -m unittest discover -s tests

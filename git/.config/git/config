@@ -105,9 +105,6 @@
 [includeIf "gitdir:~/dev/private/**"]
   path = ~/.config/git/private/config.local
 
-[includeIf "gitdir:~/dev/cbh/**"]
-  path = ~/.config/git/clipboard/config.local
-
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f

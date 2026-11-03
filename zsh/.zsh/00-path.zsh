@@ -3,6 +3,7 @@ setopt extended_glob null_glob
 
 path=(
   $HOME/bin
+  $HOME/.local/bin                            # agent-runtime shims
   $path                                       # Keep existing PATH
   $HOME/.local/share/mise/bin
   $HOME/.local/share/mise/shims

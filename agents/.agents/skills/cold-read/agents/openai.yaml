@@ -1,5 +1,0 @@
-interface:
-  display_name: "Cold read"
-  short_description: "Zero-context comprehension check of a doc"
-policy:
-  allow_implicit_invocation: false

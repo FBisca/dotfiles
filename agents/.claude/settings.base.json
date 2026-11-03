@@ -1,0 +1,78 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "0"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "permissions": {
+    "allow": [
+      "mcp__notion",
+      "mcp__plugin_agent-runtime_agent-runtime"
+    ]
+  },
+  "model": "opus",
+  "statusLine": {
+    "type": "command",
+    "command": "sh \"$HOME/.claude/statusline.sh\""
+  },
+  "enabledPlugins": {
+    "dart@claude-code-lsps": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "hyperframes@hyperframes": false,
+    "agent-runtime@agent-runtime": true,
+    "cowork-plugin-management@knowledge-work-plugins": false
+  },
+  "extraKnownMarketplaces": {
+    "claude-code-lsps": {
+      "source": {
+        "source": "github",
+        "repo": "Piebald-AI/claude-code-lsps"
+      }
+    },
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "hyperframes": {
+      "source": {
+        "source": "github",
+        "repo": "heygen-com/hyperframes"
+      }
+    },
+    "agent-runtime": {
+      "source": {
+        "source": "directory",
+        "path": "~/developer/agent-runtime"
+      }
+    }
+  },
+  "effortLevel": "xhigh",
+  "modelSettings": {
+    "glm-5.3:cloud": {
+      "effortLevel": "xhigh"
+    },
+    "claude-sonnet-5": {
+      "effortLevel": "high"
+    },
+    "claude-fable-5-1": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    }
+  },
+  "voice": {
+    "enabled": true,
+    "mode": "hold"
+  },
+  "skipWorkflowUsageWarning": true,
+  "teammateMode": "tmux",
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "voiceEnabled": true
+}

@@ -1,0 +1,129 @@
+# Public Codex defaults. install.sh merges this with the private overlay (codex-config.toml)
+# into ~/.codex/config.toml, which is generated and not stowed. Keep machine paths and
+# project trust out of here.
+
+personality = "pragmatic"
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+
+[mcp_servers.context7]
+# The key comes from the git-ignored ~/.zsh/secrets/secrets.zsh at server start; never put it here.
+command = "/bin/zsh"
+args = ["-lc", "source \"$HOME/.zsh/secrets/secrets.zsh\" && CONTEXT7_API_KEY=\"$CONTEXT7_API_KEY\" exec npx -y @upstash/context7-mcp"]
+
+[mcp_servers.stitch]
+url = "https://stitch.googleapis.com/mcp"
+
+[mcp_servers.stitch.http_headers]
+X-Goog-Api-Key = "$STITCH_API_KEY"
+
+[mcp_servers.stitch.tools.create_design_system]
+approval_mode = "approve"
+
+[mcp_servers.stitch.tools.create_design_system_from_design_md]
+approval_mode = "approve"
+
+[mcp_servers.stitch.tools.generate_screen_from_text]
+approval_mode = "approve"
+
+[mcp_servers.stitch.tools.upload_design_md]
+approval_mode = "approve"
+
+[mcp_servers.notion]
+url = "https://mcp.notion.com/mcp"
+
+[mcp_servers.langchain-docs]
+url = "https://docs.langchain.com/mcp"
+
+[mcp_servers.langchain-docs.tools.query_docs_filesystem_docs_by_lang_chain]
+approval_mode = "approve"
+
+[mcp_servers.langchain-docs.tools.search_docs_by_lang_chain]
+approval_mode = "approve"
+
+[mcp_servers.langsmith]
+url = "https://eu.api.smith.langchain.com/mcp"
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["@playwright/mcp@latest"]
+
+[mcp_servers.playwright.tools.browser_navigate]
+approval_mode = "approve"
+
+# agent-runtime: shims installed by agent-runtime/install.sh into ~/.local/bin.
+[mcp_servers.agent-runtime]
+command = "sh"
+args = ["-c", "exec \"$HOME/.local/bin/agent-runtime-mcp\""]
+env_vars = ["HC_TERMINAL_ID", "HC_SCOPE", "HC_TERMINAL_SOCKET", "HERDR_PANE_ID", "HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_SESSION"]
+default_tools_approval_mode = "auto"
+tool_timeout_sec = 600
+
+[mcp_servers.agent-runtime.env]
+AGENT_RUNTIME_DISPATCH = "1"
+
+[mcp_servers.agent-runtime.tools.spawn]
+output_token_limit = 524288
+approval_mode = "approve"
+
+[mcp_servers.agent-runtime.tools.message]
+output_token_limit = 524288
+approval_mode = "approve"
+
+[mcp_servers.agent-runtime.tools.resume]
+output_token_limit = 524288
+approval_mode = "approve"
+
+[mcp_servers.agent-runtime.tools.stop]
+output_token_limit = 524288
+approval_mode = "approve"
+
+[mcp_servers.agent-runtime.tools.report]
+output_token_limit = 524288
+approval_mode = "approve"
+
+[mcp_servers.agent-runtime.tools.wait]
+output_token_limit = 524288
+
+[mcp_servers.agent-runtime.tools.status]
+output_token_limit = 524288
+
+[mcp_servers.agent-runtime.tools.list]
+output_token_limit = 524288
+
+[mcp_servers.agent-runtime.tools.collect]
+output_token_limit = 524288
+
+[mcp_servers.agent-runtime.tools.task]
+output_token_limit = 524288
+approval_mode = "approve"
+
+[features]
+hooks = true
+js_repl = false
+
+[sandbox_workspace_write]
+exclude_slash_tmp = false
+exclude_tmpdir_env_var = false
+network_access = true
+
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "\"$HOME/.local/bin/agent-runtime-hook\" --cli codex"
+timeout = 5
+statusMessage = "Checking hc command"
+
+[[hooks.PreToolUse]]
+matcher = "^mcp__agent-runtime__.*$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "\"$HOME/.local/bin/agent-runtime-hook\" --cli codex"
+timeout = 5
+statusMessage = "Checking agent-runtime caller"

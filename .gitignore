@@ -21,8 +21,10 @@ zsh/.zsh/secrets/
 .idea/
 .DS_Store
 agents/.codex/rules/default.rules
-# [skills] claude.ai account skills, re-synced by Claude Code into ~/.claude/skills/synced (Anthropic license forbids redistribution)
-agents/.agents/skills/synced/
+# [skills] claude.ai account skills (~/.claude/skills/synced) must never be redistributed (Anthropic license)
+synced/
+agents/.claude/settings.json.bak-*
+agents/.codex/config.toml.bak-*
 __pycache__/
 
 # [private] machine/work-only content, never public

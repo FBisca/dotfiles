@@ -1,5 +1,0 @@
-interface:
-  display_name: "Idea Answer"
-  short_description: "Route every open question to its owner, keep the Brief current, commit"
-policy:
-  allow_implicit_invocation: false

@@ -1,102 +1,248 @@
 #!/bin/bash
+# Install the dotfiles: link skills, wire the agent runtime, generate agent config, stow the rest.
+#
+# Usage: ./install.sh [--no-stow] [--upstream] [-h]
+#   --no-stow    skip GNU Stow (skills, runtime and generated config still run)
+#   --upstream   also reinstall the upstream skills agent-skills does not carry
+#
+# Environment (all optional):
+#   AGENT_SKILLS_DIR   agent-skills checkout      (default ~/developer/agent-skills, cloned if missing)
+#   AGENT_RUNTIME_DIR  agent-runtime checkout     (default ~/developer/agent-runtime, cloned if missing)
+#   AGENT_FLEET_DIR    private skills checkout    (default ~/developer/agent-fleet, skipped if missing)
+#   DOTFILES_PRIVATE   private config overlay dir (default $AGENT_FLEET_DIR/overlay)
+#   AGENT_SKILLS_REPO / AGENT_RUNTIME_REPO   clone URLs
+#
+# Safe to re-run. Never deletes user data: replaced files are backed up, skill state is moved.
 
-# Dotfiles Installation Script for macOS ARM
-# This script installs all dotfiles using GNU Stow
+set -euo pipefail
 
-set -e
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
 
-# Colors for output
+AGENT_SKILLS_DIR="${AGENT_SKILLS_DIR:-$HOME/developer/agent-skills}"
+AGENT_RUNTIME_DIR="${AGENT_RUNTIME_DIR:-$HOME/developer/agent-runtime}"
+AGENT_FLEET_DIR="${AGENT_FLEET_DIR:-$HOME/developer/agent-fleet}"
+DOTFILES_PRIVATE="${DOTFILES_PRIVATE:-$AGENT_FLEET_DIR/overlay}"
+AGENT_SKILLS_REPO="${AGENT_SKILLS_REPO:-https://github.com/FBisca/agent-skills.git}"
+AGENT_RUNTIME_REPO="${AGENT_RUNTIME_REPO:-https://github.com/FBisca/agent-runtime.git}"
+LEGACY_CLAUDE_OVERLAY="$HOME/.claude/private-overlay/settings.overlay.json"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
+info() { printf '%b[INFO]%b %s\n' "$BLUE" "$NC" "$1"; }
+ok() { printf '%b[OK]%b %s\n' "$GREEN" "$NC" "$1"; }
+warn() { printf '%b[WARN]%b %s\n' "$YELLOW" "$NC" "$1" >&2; }
+die() { printf '%b[ERROR]%b %s\n' "$RED" "$NC" "$1" >&2; exit 1; }
 
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Check if we're on macOS
-if [[ "$OSTYPE" != "darwin"* ]]; then
-    print_error "This script is designed for macOS."
-    exit 1
-fi
-
-# Check if we're in the right directory
-if [[ ! -f "README.md" ]] || [[ ! -d ".git" ]]; then
-    print_error "Please run this script from the dotfiles directory."
-    exit 1
-fi
-
-# Check if stow is installed
-if ! command -v stow &> /dev/null; then
-    print_error "GNU Stow is not installed. Please install it first:"
-    echo "  brew install stow"
-    exit 1
-fi
-
-print_status "Installing dotfiles with GNU Stow..."
-
-# Real folders for agent homes: stow then links only the tracked entries inside them
-# (skills, settings), so sessions, credentials and history never land in this repo.
-mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents"
-
-# List of modules to install
-MODULES=(
-    "git"
-    "zsh" 
-    "nvim"
-    "mise"
-    "gh"
-    "kitty"
-    "wezterm"
-    "fzf"
-    "env"
-    "slack"
-    "agents"
-    "bin"
-)
-
-# Install each module
-for module in "${MODULES[@]}"; do
-    if [[ -d "$module" ]]; then
-        print_status "Installing $module..."
-        if stow "$module"; then
-            print_success "$module installed successfully"
-        else
-            print_error "Failed to install $module"
-            exit 1
-        fi
-    else
-        print_warning "Module $module not found, skipping..."
-    fi
+DO_STOW=1
+DO_UPSTREAM=0
+for arg in "$@"; do
+  case "$arg" in
+    --no-stow) DO_STOW=0 ;;
+    --upstream) DO_UPSTREAM=1 ;;
+    -h | --help) sed -n '2,16p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    *) die "unknown option: $arg (see --help)" ;;
+  esac
 done
 
-print_success "All dotfiles installed successfully!"
-print_status "Next steps:"
-echo "  1. Restart your terminal or run: source ~/.zshrc"
-echo "  2. Install Oh My Zsh if not already installed:"
-echo "     sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
-echo "  3. Install mise if not already installed:"
-echo "     curl https://mise.jdx.dev/install.sh | sh"
-echo "  4. Install tools with mise:"
-echo "     mise install"
-echo "  5. Authenticate with GitHub CLI:"
-echo "     gh auth login"
-echo "  6. Install Nerd Fonts:"
-echo "     brew install --cask font-fira-code-nerd-font"
-echo "  7. Install additional tools:"
-echo "     brew install git gh fzf fd ripgrep bat eza jq"
+[[ -f README.md && -e .git ]] || die "run this script from the dotfiles checkout"
+command -v git >/dev/null 2>&1 || die "git is required"
+command -v python3 >/dev/null 2>&1 || die "python3 (3.11+) is required"
+
+clone_if_missing() { # dir url
+  [[ -d "$1" ]] && return 0
+  info "cloning $2 into $1"
+  mkdir -p "$(dirname "$1")"
+  git clone --quiet "$2" "$1" || die "could not clone $2"
+}
+
+# --- skills -----------------------------------------------------------------
+# ~/.claude/skills and ~/.agents/skills are real directories, so `npx skills add` and the
+# claude.ai synced skills never write into a repo. Each skill from agent-skills and
+# agent-fleet is a symlink into them.
+
+resolve_dir() { # symlink -> physical directory it points to (empty when dangling)
+  local target
+  target="$(readlink "$1")"
+  [[ "$target" == /* ]] || target="$(dirname "$1")/$target"
+  if [[ -d "$target" ]]; then (cd "$target" && pwd -P); fi
+  return 0
+}
+
+SKILL_SRCS=()
+collect_skill_sources() {
+  local repo dir
+  for repo in "$AGENT_SKILLS_DIR" "$AGENT_FLEET_DIR"; do
+    [[ -d "$repo/skills" ]] || continue
+    for dir in "$repo"/skills/*/; do
+      if [[ -d "$dir" ]]; then SKILL_SRCS+=("${dir%/}"); fi
+    done
+  done
+}
+
+is_managed() { # name
+  local src
+  for src in ${SKILL_SRCS[@]+"${SKILL_SRCS[@]}"}; do
+    [[ "$(basename "$src")" == "$1" ]] && return 0
+  done
+  return 1
+}
+
+# Move what a former skills directory held into the new real ones: claude.ai's synced/ stays
+# with Claude, everything else (npx installs) goes to ~/.agents/skills. Skills this setup manages
+# are left behind, since they are re-linked from their repos.
+salvage() { # old_dir claude_dir agents_dir
+  local entry name
+  [[ -d "$1" ]] || return 0
+  for entry in "$1"/*; do
+    [[ -e "$entry" && ! -L "$entry" ]] || continue
+    name="$(basename "$entry")"
+    is_managed "$name" && continue
+    if [[ "$name" == synced ]]; then
+      [[ -e "$2/synced" ]] || mv "$entry" "$2/synced"
+    elif [[ ! -e "$3/$name" ]]; then
+      mv "$entry" "$3/$name"
+    else
+      warn "kept $entry: $3/$name already exists"
+    fi
+  done
+}
+
+link_skill() { # src dest_dir
+  local name target
+  name="$(basename "$1")"
+  target="$2/$name"
+  if [[ -L "$target" ]]; then
+    ln -sfn "$1" "$target"
+  elif [[ -e "$target" ]]; then
+    warn "skipped $name: a real entry already exists in $2"
+  else
+    ln -s "$1" "$target"
+  fi
+}
+
+setup_skills() {
+  local claude="$HOME/.claude/skills" agents="$HOME/.agents/skills"
+  local olds=() dir old src entry name
+  mkdir -p "$HOME/.claude" "$HOME/.agents"
+  collect_skill_sources
+
+  for dir in "$claude" "$agents"; do
+    if [[ -L "$dir" ]]; then
+      old="$(resolve_dir "$dir")"
+      if [[ -n "$old" ]]; then olds+=("$old"); fi
+      rm "$dir"
+    fi
+    mkdir -p "$dir"
+  done
+  # A dangling link means the old layout is already gone from the checkout; synced/ lives on there.
+  olds+=("$ROOT/agents/.agents/skills")
+  for old in "${olds[@]}"; do
+    salvage "$old" "$claude" "$agents"
+  done
+
+  for dir in "$claude" "$agents"; do
+    for entry in "$dir"/*; do # drop links whose skill has been removed
+      if [[ -L "$entry" && ! -e "$entry" ]]; then rm "$entry"; fi
+    done
+    for src in ${SKILL_SRCS[@]+"${SKILL_SRCS[@]}"}; do
+      link_skill "$src" "$dir"
+    done
+  done
+  for entry in "$agents"/*; do # skills installed into ~/.agents (npx) are visible to Claude too
+    name="$(basename "$entry")"
+    if [[ -d "$entry" && ! -e "$claude/$name" && ! -L "$claude/$name" ]]; then
+      ln -s "$entry" "$claude/$name"
+    fi
+  done
+  ok "skills linked into $claude and $agents (${#SKILL_SRCS[@]} from agent-skills and agent-fleet)"
+
+  if [[ "$DO_UPSTREAM" -eq 1 ]]; then
+    [[ -x "$AGENT_SKILLS_DIR/scripts/install-upstream.sh" ]] || die "no install-upstream.sh in $AGENT_SKILLS_DIR"
+    info "installing upstream skills"
+    "$AGENT_SKILLS_DIR/scripts/install-upstream.sh"
+  fi
+}
+
+# --- agent runtime ------------------------------------------------------------
+setup_runtime() {
+  clone_if_missing "$AGENT_RUNTIME_DIR" "$AGENT_RUNTIME_REPO"
+  [[ -x "$AGENT_RUNTIME_DIR/install.sh" ]] || die "$AGENT_RUNTIME_DIR/install.sh not found"
+  BIN_DIR="$HOME/.local/bin" "$AGENT_RUNTIME_DIR/install.sh" >/dev/null
+  ok "agent-runtime shims linked into $HOME/.local/bin"
+}
+
+# --- generated config -----------------------------------------------------------
+# Live settings are base + private overlay, deep-merged by scripts/merge-config.py (arrays
+# concatenate). The result replaces the live file atomically, so it is never half-written.
+generate_config() { # kind base live overlay...
+  local kind="$1" base="$2" live="$3" new
+  shift 3
+  mkdir -p "$(dirname "$live")"
+  new="$live.new.$$"
+  python3 "$ROOT/scripts/merge-config.py" "$kind" "$new" "$base" "$@" || {
+    rm -f "$new"
+    die "could not generate $live; it was left untouched"
+  }
+  if [[ -e "$live" ]] && ! cmp -s "$live" "$new"; then
+    cp -L "$live" "$live.bak-$(date +%Y%m%d%H%M%S)"
+    warn "$live differed from the generated file; previous copy saved as $live.bak-*"
+  fi
+  mv -f "$new" "$live" # replaces a symlink to the old tracked file without touching its target
+  ok "generated $live"
+}
+
+setup_config() {
+  local overlay=()
+  if [[ -f "$DOTFILES_PRIVATE/claude-settings.json" ]]; then
+    overlay=("$DOTFILES_PRIVATE/claude-settings.json")
+  elif [[ -f "$LEGACY_CLAUDE_OVERLAY" ]]; then
+    overlay=("$LEGACY_CLAUDE_OVERLAY")
+  fi
+  generate_config json "$ROOT/agents/.claude/settings.base.json" "$HOME/.claude/settings.json" \
+    ${overlay[@]+"${overlay[@]}"}
+
+  overlay=()
+  if [[ -f "$DOTFILES_PRIVATE/codex-config.toml" ]]; then overlay=("$DOTFILES_PRIVATE/codex-config.toml"); fi
+  generate_config toml "$ROOT/agents/.codex/config.base.toml" "$HOME/.codex/config.toml" \
+    ${overlay[@]+"${overlay[@]}"}
+}
+
+# --- stow -----------------------------------------------------------------------
+MODULES=(git zsh nvim mise gh kitty wezterm fzf env slack agents bin)
+
+stow_modules() {
+  command -v stow >/dev/null 2>&1 || die "GNU Stow is not installed (brew install stow), or pass --no-stow"
+  # Real folders for agent homes: stow links only the tracked entries inside them, so
+  # sessions, credentials and history never land in this repo.
+  mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents"
+  local module
+  for module in "${MODULES[@]}"; do
+    if [[ -d "$module" ]]; then
+      info "stowing $module"
+      stow "$module" || die "failed to stow $module"
+    else
+      warn "module $module not found, skipping"
+    fi
+  done
+  ok "dotfiles stowed"
+}
+
+clone_if_missing "$AGENT_SKILLS_DIR" "$AGENT_SKILLS_REPO"
+setup_skills
+setup_runtime
+setup_config
+if [[ "$DO_STOW" -eq 1 ]]; then stow_modules; fi
+
+ok "done"
+cat <<'EOF'
+Next steps:
+  1. Restart your terminal, or: source ~/.zshrc
+  2. Restart Claude Code and Codex so they pick up the generated config.
+  3. Optional tools: oh-my-zsh, mise, gh (gh auth login), Nerd Fonts, jq, ripgrep, fzf.
+  4. Upstream skills: ./install.sh --upstream
+EOF

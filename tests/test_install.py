@@ -201,6 +201,54 @@ class RuntimeWiringTest(HomeCase):
         self.assertIn("deny", done.stdout)
 
 
+class RastroWiringTest(HomeCase):
+    """rastro's MCP server launches from ~/.cargo/bin in Codex and is registered once in Claude Code."""
+
+    def fake(self, name, body):
+        path = self.tmp / "fakebin" / name
+        path.parent.mkdir(exist_ok=True)
+        path.write_text("#!/bin/sh\n" + body)
+        path.chmod(0o755)
+        return path
+
+    def install_rastro(self):
+        rastro = self.home / ".cargo/bin/rastro"
+        rastro.parent.mkdir(parents=True)
+        rastro.write_text('#!/bin/sh\necho "rastro $*"\n')
+        rastro.chmod(0o755)
+
+    def fake_claude(self):
+        log = self.tmp / "claude.log"
+        self.fake("claude", f'echo "$*" >> "{log}"\n'
+                  f'[ "$1 $2" = "mcp get" ] && {{ grep -q "^mcp add" "{log}" || exit 1; }}\nexit 0\n')
+        return log
+
+    def path_with_fakes(self):
+        return f"{self.tmp / 'fakebin'}:{os.environ['PATH']}"
+
+    def test_codex_launches_rastro_mcp_from_cargo_bin(self):
+        self.install_rastro()
+        self.install()
+        server = tomllib.loads((self.home / ".codex/config.toml").read_text())["mcp_servers"]["rastro"]
+        done = subprocess.run([server["command"], *server["args"]], env={"PATH": "/usr/bin:/bin", "HOME": str(self.home)},
+                              capture_output=True, text=True, timeout=10)
+        self.assertEqual(done.stdout.strip(), "rastro mcp")
+
+    def test_claude_gets_rastro_registered_once_across_reruns(self):
+        self.install_rastro()
+        log = self.fake_claude()
+        self.install(PATH=self.path_with_fakes())
+        self.install(PATH=self.path_with_fakes())
+        adds = [line for line in log.read_text().splitlines() if line.startswith("mcp add")]
+        self.assertEqual(adds, ['mcp add --scope user rastro -- sh -c exec "$HOME/.cargo/bin/rastro" mcp'])
+
+    def test_claude_is_left_alone_while_rastro_is_not_installed(self):
+        log = self.fake_claude()
+        done = self.install(PATH=self.path_with_fakes())
+        self.assertFalse(log.exists())
+        self.assertIn("cargo install --locked", done.stdout)
+
+
 class ConfigMergeTest(HomeCase):
     def overlay(self, claude=None, codex=None):
         directory = self.tmp / "overlay"

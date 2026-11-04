@@ -209,6 +209,26 @@ setup_runtime() {
   fi
 }
 
+# --- rastro MCP -----------------------------------------------------------------
+# Claude Code keeps user-scope MCP servers in ~/.claude.json, which is not generated here,
+# so register rastro there once. Codex gets it from config.base.toml.
+# shellcheck disable=SC2016 # $HOME expands when the server starts, not here
+RASTRO_MCP='exec "$HOME/.cargo/bin/rastro" mcp'
+
+setup_rastro() {
+  if [[ ! -x "$HOME/.cargo/bin/rastro" ]]; then
+    info "rastro not installed; its MCP entries wait for: cargo install --locked --path crates/rastro-cli"
+    return 0
+  fi
+  command -v claude >/dev/null 2>&1 || return 0
+  claude mcp get rastro >/dev/null 2>&1 && return 0
+  if claude mcp add --scope user rastro -- sh -c "$RASTRO_MCP" >/dev/null 2>&1; then
+    ok "rastro MCP server registered for Claude Code"
+  else
+    warn "register it once with: claude mcp add --scope user rastro -- sh -c '$RASTRO_MCP'"
+  fi
+}
+
 # --- generated config -----------------------------------------------------------
 # Tables the tools write into their own live config at runtime. They are carried over from
 # the live file (live wins, base and overlay entries it lacks stay), so re-running the
@@ -280,6 +300,7 @@ stow_modules() {
 clone_if_missing "$AGENT_SKILLS_DIR" "$AGENT_SKILLS_REPO"
 setup_skills
 setup_runtime
+setup_rastro
 setup_config
 if [[ "$DO_STOW" -eq 1 ]]; then stow_modules; fi
 

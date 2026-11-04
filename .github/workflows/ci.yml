@@ -18,7 +18,7 @@ jobs:
       - name: zsh syntax
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq zsh
-          for f in zsh/.zshrc zsh/.zsh/*.zsh; do zsh -n "$f"; done
+          for f in zsh/.zshenv zsh/.zshrc zsh/.zsh/*.zsh; do zsh -n "$f"; done
 
   stow:
     runs-on: macos-latest

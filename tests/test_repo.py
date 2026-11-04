@@ -2,7 +2,9 @@
 
 import re
 import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 
 from support import ROOT
 
@@ -86,6 +88,14 @@ class PublicRepoTest(unittest.TestCase):
         self.assertNotIn("160000", staged, "gitlink without .gitmodules")
         self.assertNotIn("ai-job-search", (ROOT / "zsh/.zshrc").read_text())
 
+
+    def test_zshenv_puts_cargo_bin_on_path_for_non_interactive_shells(self):
+        with tempfile.TemporaryDirectory() as home:
+            (Path(home) / ".cargo/bin").mkdir(parents=True)
+            env = {"HOME": home, "PATH": "/usr/bin:/bin", "ZDOTDIR": str(ROOT / "zsh")}
+            done = subprocess.run(["zsh", "-c", "print -r -- $PATH"], env=env, capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertEqual(done.stdout.strip().split(":").count(f"{home}/.cargo/bin"), 1)
 
 if __name__ == "__main__":
     unittest.main()

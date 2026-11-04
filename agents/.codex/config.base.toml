@@ -36,6 +36,12 @@ args = ["@playwright/mcp@latest"]
 [mcp_servers.playwright.tools.browser_navigate]
 approval_mode = "approve"
 
+# rastro: read-only search and coverage over the owner's evidence, installed by
+# `cargo install --locked --path crates/rastro-cli` from a rastro-ai checkout.
+[mcp_servers.rastro]
+command = "sh"
+args = ["-c", "exec \"$HOME/.cargo/bin/rastro\" mcp"]
+
 # agent-runtime: shims installed by agent-runtime/install.sh into ~/.local/bin.
 [mcp_servers.agent-runtime]
 command = "sh"

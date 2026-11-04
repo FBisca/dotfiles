@@ -127,3 +127,27 @@ type = "command"
 command = "\"$HOME/.local/bin/agent-runtime-hook\" --cli codex"
 timeout = 5
 statusMessage = "Checking agent-runtime caller"
+
+# agent-runtime lead-liveness hooks: block a lead's Stop while it has unseen worker
+# results, and remind it after compact/clear and on each prompt. Trust them via /hooks.
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = "\"$HOME/.local/bin/agent-runtime-hook\" stop --cli codex"
+timeout = 5
+statusMessage = "Checking for unseen worker results"
+
+[[hooks.SessionStart]]
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "\"$HOME/.local/bin/agent-runtime-hook\" context --cli codex"
+timeout = 5
+
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "\"$HOME/.local/bin/agent-runtime-hook\" context --cli codex"
+timeout = 5

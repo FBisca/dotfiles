@@ -44,13 +44,22 @@ class CodexWiringTest(unittest.TestCase):
 
     def test_pre_tool_use_hooks_guard_bash_and_the_runtime_tools(self):
         hooks = CODEX["hooks"]
-        self.assertNotIn("SessionStart", hooks)
         pre = hooks["PreToolUse"]
         self.assertEqual([entry["matcher"] for entry in pre], ["^Bash$", "^mcp__agent-runtime__.*$"])
         self.assertRegex("mcp__agent-runtime__task", pre[1]["matcher"])
         for entry in pre:
             self.assertEqual(entry["hooks"][0]["command"], '"$HOME/.local/bin/agent-runtime-hook" --cli codex')
             self.assertEqual(entry["hooks"][0]["timeout"], 5)
+
+    def test_lead_liveness_hooks_run_the_shim_per_event(self):
+        hooks = CODEX["hooks"]
+        expected = {"Stop": "stop", "SessionStart": "context", "UserPromptSubmit": "context"}
+        for event, sub in expected.items():
+            (entry,) = hooks[event]
+            self.assertNotIn("matcher", entry)
+            (hook,) = entry["hooks"]
+            self.assertEqual(hook["command"], f'"$HOME/.local/bin/agent-runtime-hook" {sub} --cli codex')
+            self.assertEqual(hook["timeout"], 5)
 
     def test_every_tool_the_runtime_serves_is_configured(self):
         if RUNTIME_SRC is None:

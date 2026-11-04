@@ -14,24 +14,6 @@ approvals_reviewer = "auto_review"
 command = "/bin/zsh"
 args = ["-lc", "source \"$HOME/.zsh/secrets/secrets.zsh\" && CONTEXT7_API_KEY=\"$CONTEXT7_API_KEY\" exec npx -y @upstash/context7-mcp"]
 
-[mcp_servers.stitch]
-url = "https://stitch.googleapis.com/mcp"
-
-[mcp_servers.stitch.http_headers]
-X-Goog-Api-Key = "$STITCH_API_KEY"
-
-[mcp_servers.stitch.tools.create_design_system]
-approval_mode = "approve"
-
-[mcp_servers.stitch.tools.create_design_system_from_design_md]
-approval_mode = "approve"
-
-[mcp_servers.stitch.tools.generate_screen_from_text]
-approval_mode = "approve"
-
-[mcp_servers.stitch.tools.upload_design_md]
-approval_mode = "approve"
-
 [mcp_servers.notion]
 url = "https://mcp.notion.com/mcp"
 

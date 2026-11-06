@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_agent-runtime_agent-runtime",
+      "Skill",
+      "Bash(cargo *)",
+      "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git show*)",
+      "Bash(git branch*)", "Bash(git switch*)", "Bash(git checkout *)", "Bash(git add *)",
+      "Bash(git commit *)", "Bash(git fetch*)", "Bash(git pull*)", "Bash(git rebase *)",
+      "Bash(git stash*)", "Bash(git rev-parse*)", "Bash(git merge-base*)",
+      "Bash(git push -u origin *)", "Bash(git push origin *)", "Bash(git push)",
+      "Bash(gh pr *)", "Bash(gh run *)", "Bash(gh issue view *)",
+      "Bash(python3 *)", "Bash(rg *)", "Bash(grep *)", "Bash(find *)", "Bash(ls*)",
+      "Bash(cat *)", "Bash(head *)", "Bash(tail *)", "Bash(wc *)", "Bash(sort *)",
+      "Bash(diff *)", "Bash(jq *)", "Bash(sed -n *)", "Bash(mkdir *)", "Bash(pwd)",
+      "Bash(which *)", "Bash(sqlite3 *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)", "Bash(git push -f*)", "Bash(git push * --force*)", "Bash(git push * -f*)",
+      "Bash(git push origin main*)", "Bash(git reset --hard*)", "Bash(git clean *)",
+      "Bash(gh pr merge *)", "Bash(rm -rf *)", "Bash(curl *)", "Bash(wget *)", "Bash(sudo *)"
+    ]
+  }
+}

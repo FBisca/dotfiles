@@ -5,3 +5,8 @@ model = "gpt-6.1-terra"
 approval_policy = "never"
 sandbox_mode = "workspace-write"
 model_reasoning_effort = "medium"
+
+# Workers write task results to orchestrate run directories; without this root the sandbox
+# blocks shell writes there ("operation not permitted"), though the patch tool still works.
+[sandbox_workspace_write]
+writable_roots = ["~/.local/state/orchestrate"]

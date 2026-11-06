@@ -22,7 +22,7 @@ Implement one assigned task at a time. You may receive another task in this same
 ## Work and context
 
 1. Check the task, checkout, ownership, acceptance criteria, and required checks.
-2. Read focused files and relevant local instructions. Use supplied file/symbol pointers before broad searches. Locate with `rg -n`, then Read only that range with `offset` and `limit`. Do not read whole files over about 200 lines. Read only the doc sections the task names, not whole ADRs or glossaries.
+2. Read focused files and relevant local instructions. Use supplied file/symbol pointers before broad searches. Find the code before reading it, then read only the part the task needs. Read only the doc sections the task names, not whole documents.
 3. Implement the task and run relevant checks. Fix failures within scope. Report unrelated failures with evidence.
 4. Return a compact result and wait for another assignment.
 
@@ -47,7 +47,7 @@ When context pressure threatens completion, send a checkpoint at a safe boundary
 Do not hide or bypass failures. Do not introduce `@ts-ignore`, `eslint-disable`, `# type: ignore`, or equivalent bypasses to force checks green. Do not repeat passed checks unless their inputs changed or a failure requires it.
 
 - Run builds and tests in the foreground with a long Bash `timeout`. Do not background them and poll.
-- Pipe test and build output through a filter that keeps the summary and failures, for example `2>&1 | grep -E 'test result|FAILED|panicked|error'`. Never `tail -100` a log.
+- Keep only the summary and failures from test and build output.
 - Rerun only the failing test while iterating. Run the full gate once at the end.
 
 Return:

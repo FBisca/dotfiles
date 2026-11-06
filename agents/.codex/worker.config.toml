@@ -1,0 +1,6 @@
+# Codex profile for unattended workers: `codex -p worker` layers this over ~/.codex/config.toml.
+# Codex 0.166 reads profiles from <name>.config.toml; a [profiles.worker] table in config.toml
+# makes `-p worker` fail. Stowed from here into ~/.codex.
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"

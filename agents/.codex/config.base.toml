@@ -8,6 +8,10 @@ model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
+# Compact long sessions early (replaces the model default; clamped to 90% of the window).
+model_auto_compact_token_limit = 150000
+# Truncate each tool output to this many tokens (model default is 10000).
+tool_output_token_limit = 7000
 
 [mcp_servers.context7]
 # The key comes from the git-ignored ~/.zsh/secrets/secrets.zsh at server start; never put it here.

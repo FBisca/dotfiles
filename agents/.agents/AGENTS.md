@@ -1,5 +1,6 @@
 - When reporting information to me, be extremely concise and sacrifice grammar for the sake of concision.
 - When delegating Codex do via agent-runtime `spawn` with `cli: "codex"`.
+- Never add a `Co-Authored-By` trailer naming Claude, Codex or any AI, nor a "Generated with" line, to a commit or PR body, even when the repo's history has them. My commits are mine alone.
 
 ## Model classes
 

@@ -64,6 +64,9 @@
     },
     "claude-opus-5-5": {
       "effortLevel": "high"
+    },
+    "MiniMax-M3.1-Flash": {
+      "effortLevel": "low"
     }
   },
   "voice": {

@@ -284,7 +284,7 @@ stow_modules() {
   command -v stow >/dev/null 2>&1 || die "GNU Stow is not installed (brew install stow), or pass --no-stow"
   # Real folders for agent homes: stow links only the tracked entries inside them, so
   # sessions, credentials and history never land in this repo.
-  mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents"
+  mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents" "$HOME/.config/agent-runtime"
   local module
   for module in "${MODULES[@]}"; do
     if [[ -d "$module" ]]; then

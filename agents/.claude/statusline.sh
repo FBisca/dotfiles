@@ -1,10 +1,15 @@
 #!/bin/sh
-# Claude Code status line: model, context bar, % and tokens used / window size.
+# Claude Code status line: model, context bar, % and tokens used / window size, effort.
 input=$(cat)
 model=$(echo "$input" | jq -r '.model.display_name')
 used=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
 size=$(echo "$input" | jq -r '.context_window.context_window_size // empty')
-[ -z "$used" ] && { echo "$model"; exit 0; }
+# .effort.level is absent when the model has no effort setting; it tracks /effort and --effort,
+# not skill, subagent or ultrathink overrides.
+effort=$(echo "$input" | jq -r '.effort.level // empty')
+suffix=""
+[ -n "$effort" ] && suffix=" · $effort"
+[ -z "$used" ] && { echo "$model$suffix"; exit 0; }
 pct=$(printf '%.0f' "$used")
 fill=$((pct * 10 / 100))
 bar=""
@@ -16,7 +21,7 @@ done
 k() { awk -v n="$1" 'BEGIN { if (n >= 1000000) printf "%.1fM", n/1000000; else printf "%.0fk", n/1000 }'; }
 if [ -n "$size" ]; then
   tokens=$(awk -v p="$used" -v s="$size" 'BEGIN { printf "%d", p * s / 100 }')
-  printf '%s [%s] %d%% · %s/%s\n' "$model" "$bar" "$pct" "$(k "$tokens")" "$(k "$size")"
+  printf '%s [%s] %d%% · %s/%s%s\n' "$model" "$bar" "$pct" "$(k "$tokens")" "$(k "$size")" "$suffix"
 else
-  printf '%s [%s] %d%%\n' "$model" "$bar" "$pct"
+  printf '%s [%s] %d%%%s\n' "$model" "$bar" "$pct" "$suffix"
 fi

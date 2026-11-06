@@ -1,7 +1,7 @@
 name = "implementer"
 description = "Implements one assigned task at a time, accepts related follow-ups, coordinates with assigned peers, and returns verification evidence to the orchestrator."
 
-model = "gpt-5.6-terra"
+model = "gpt-6.1-terra"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 

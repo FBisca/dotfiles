@@ -51,13 +51,16 @@
       }
     }
   },
-  "effortLevel": "xhigh",
+  "effortLevel": "medium",
   "modelSettings": {
     "glm-5.3:cloud": {
       "effortLevel": "xhigh"
     },
-    "claude-sonnet-5": {
-      "effortLevel": "high"
+    "claude-haiku-5-5": {
+      "effortLevel": "low"
+    },
+    "claude-sonnet-5-5": {
+      "effortLevel": "medium"
     },
     "claude-fable-5-1": {
       "effortLevel": "high"

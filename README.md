@@ -79,9 +79,11 @@ Anything else in a live file, including a `model` changed mid-session, is regene
 
 Claude Code and Codex are configured from `agents/`:
 
-- `settings.base.json` and `config.base.toml`: shared defaults, merged with the overlay as above.
+- `settings.base.json` and `config.base.toml`: shared defaults, merged with the overlay as above. Claude's default effort is `medium`; `modelSettings` sets each model's own level, keyed by the canonical id (`claude-sonnet-5-5`, not `claude-sonnet-5`). A model without an entry runs at the default.
+- `.codex/worker.config.toml`: the profile agent-runtime gives Codex workers (`codex -p worker`): `gpt-6.1-terra` at medium effort. Codex reads a worker's model and effort from this file, not from `agents/implementer.toml`.
+- `.config/agent-runtime/`: agent-runtime's launch profiles (`minimax` runs a Claude worker on MiniMax-M3.1-Flash) and that profile's permission allowlist. The API key stays a `$MINIMAX_API_KEY` reference.
 - `agents/` in each home: custom agents, such as the `implementer` that orchestrated builds delegate to.
-- `.claude/statusline.sh`: the status line (model, context bar, tokens used).
+- `.claude/statusline.sh`: the status line (model, context bar, tokens used, effort).
 - `.agents/AGENTS.md`: shared instructions, linked into both tools.
 
 Skills and the workflow they implement come from [`agent-skills`](https://github.com/FBisca/agent-skills); its [workflow guide](https://github.com/FBisca/agent-skills/blob/main/docs/workflow.md) explains idea, spec, plan, build. Delegation comes from [`agent-runtime`](https://github.com/FBisca/agent-runtime): Claude loads the plugin in place from `~/developer/agent-runtime` as a directory marketplace, so edits apply at the next Claude/Codex session. There is no update step, and version bumps are record-only. Codex reaches the same server and PreToolUse hook through `$HOME/.local/bin/agent-runtime-mcp` and `agent-runtime-hook`. The `codex()` shell wrapper adds `--no-daemon` inside Herdr terminals.

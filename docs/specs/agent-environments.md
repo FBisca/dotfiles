@@ -10,7 +10,7 @@ Pi has no permission prompts, so the mutating `agent-runtime` MCP server is remo
 
 The sandbox that guards Pi is configured the same way: `agents/.pi/sandbox.base.json` is the tracked base for the pi-sandbox extension and is merged into the global `~/.pi/agent/sandbox.json`. The live file is the user's own, because that is where the extension writes the grants a permission prompt approved, so base and overlay are merged under it. The installer never grants itself anything: a rule that the tracked base does not have stays behind a prompt.
 
-The rules are autonomous — the agent is not stopped to ask — so the deny list is the safety net: no `.env`, no key and no credential file can be written, anywhere on the machine, and nothing else is blocked.
+The rules are autonomous — the agent is not stopped to ask — so the deny list is the safety net: no `.env`, no key and no credential file can be written or read, on any path of the machine, and nothing else is blocked.
 
 ## Requirements
 
@@ -21,4 +21,4 @@ The rules are autonomous — the agent is not stopped to ask — so the deny lis
 - **R5** WHEN the Pi configuration is installed, THEN the `agent-runtime` MCP server is not exposed to Pi and no mutating runtime tool is available there. (from pi-bootstrap/S5)
 - **R6** WHEN Pi is not installed or no credential is authorised, THEN the installer reports the missing prerequisite and picks no provider of its own. (from pi-bootstrap/S6)
 - **R7** WHEN the installer runs on a machine that uses the pi-sandbox extension, THEN the tracked sandbox base is merged into `~/.pi/agent/sandbox.json`, the grants already present in that live file survive, and no rule is granted without the user or a permission prompt. (from pi-sandbox/S7)
-- **R8** WHEN the sandbox rules are in place, THEN the agent is never stopped to ask for a path or a domain, and every `.env`, `.env.*`, key and credential file is hard-blocked for writing, on any path of the machine. (from pi-sandbox/S8)
+- **R8** WHEN the sandbox rules are in place, THEN the agent is never stopped to ask for a path or a domain, and every `.env`, `.env.*`, key and credential file is hard-blocked for writing and for reading from bash, on any path of the machine. (from pi-sandbox/S8)

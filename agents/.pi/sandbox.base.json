@@ -11,9 +11,33 @@
     "allowSSHAgentSocket": true
   },
   "filesystem": {
-    "denyRead": [],
+    "denyRead": [
+      ".env",
+      ".env.*",
+      "/**.env",
+      "/**.env.*",
+      "*.pem",
+      "*.key",
+      "~/.ssh/id_*",
+      "~/.aws/credentials",
+      "~/.config/gh/hosts.yml",
+      "~/.claude/.credentials.json",
+      "~/.pi/agent/auth.json"
+    ],
     "allowRead": [
-      "/"
+      "/Users",
+      "/home",
+      "/Applications",
+      "/Library",
+      "/System",
+      "/opt",
+      "/usr",
+      "/etc",
+      "/bin",
+      "/sbin",
+      "/private",
+      "/tmp",
+      "/var"
     ],
     "allowWrite": [
       "/"

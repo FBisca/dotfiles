@@ -204,16 +204,19 @@ class PiBootstrapTest(HomeCase):
         self.assertIn("/**.env", sandbox["filesystem"]["denyWrite"])
 
     def test_the_sandbox_rules_are_autonomous_and_still_block_env_files(self):
-        """S7 the rules never prompt, and no .env can be written anywhere."""
+        """S7 the rules never prompt, and no .env can be read or written."""
         self.install()
         sandbox = self.sandbox()
         self.assertEqual(sandbox["filesystem"]["allowWrite"], ["/"])
-        self.assertEqual(sandbox["filesystem"]["allowRead"], ["/"])
-        self.assertEqual(sandbox["filesystem"]["denyRead"], [])
+        self.assertIn("/Users", sandbox["filesystem"]["allowRead"])
+        self.assertNotIn("/", sandbox["filesystem"]["allowRead"],
+                         "a bare / would re-allow every denied path")
         self.assertIs(sandbox["network"]["disabled"], True)
         self.assertIn("*", sandbox["network"]["allowedDomains"])
         for pattern in ("/**.env", "/**.env.*"):
             self.assertIn(pattern, sandbox["filesystem"]["denyWrite"])
+            self.assertIn(pattern, sandbox["filesystem"]["denyRead"])
+        self.assertIn(".env", sandbox["filesystem"]["denyRead"])
         for secret in ("~/.ssh/id_*", "~/.netrc", "~/.pi/agent/auth.json"):
             self.assertIn(secret, sandbox["filesystem"]["denyWrite"])
 

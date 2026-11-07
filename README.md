@@ -97,6 +97,7 @@ Skills and the workflow they implement come from [`agent-skills`](https://github
 - `$DOTFILES_PRIVATE/pi-settings.json` is the optional private overlay for the provider and model choices (`defaultProvider`, `defaultModel`, `defaultThinkingLevel`); `agents/.pi/pi-settings.example.json` is a starting point. Provider, model and endpoint choices are machine-specific, so they stay out of the tracked files.
 - The live `~/.pi/agent/settings.json` belongs to the user: base and overlay are merged *under* it, so whatever Pi or the user wrote there survives. A file that is not valid JSON is backed up as `settings.json.bak-<timestamp>` and left untouched.
 - Skills are not copied or forked. Pi discovers the symlinks in `~/.agents/skills` that the installer already links, and the installer reports the skills it found and the ones that are missing (a missing skill is reported, never invented).
+- The tracked base declares the `pi-rtk-optimizer` package, which Pi installs at its next start. It rewrites every bash command through [rtk](https://github.com/rtk-ai/rtk), which prints the compact form of git, build and test output instead of the raw one. The `rtk` binary is a prerequisite (`brew install rtk`); the installer detects it and reports it, and never installs it. Without the binary every command still runs, unchanged.
 - No credentials are written. Authorise a provider inside Pi with `/login`, or export `MINIMAX_API_KEY` and let Pi read it from the environment; `auth.json` is never touched.
 - Pi has no permission prompts, so the `agent-runtime` MCP server is removed from `~/.pi/agent/mcp.json` (other servers stay and the previous file is backed up) until a safety adapter is approved.
 
@@ -104,7 +105,7 @@ Skills and the workflow they implement come from [`agent-skills`](https://github
 
 ### Manual checks
 
-These need the real machine and an authorised provider, so they are not covered by the automated tests. The requirements they cover live in [`docs/specs/agent-environments.md`](docs/specs/agent-environments.md); what the last run found is recorded in [`docs/verification/pi-bootstrap.md`](docs/verification/pi-bootstrap.md).
+These need the real machine and an authorised provider, so they are not covered by the automated tests. The requirements they cover live in [`docs/specs/agent-environments.md`](docs/specs/agent-environments.md); what the last run found is recorded in [`docs/verification/pi-bootstrap.md`](docs/verification/pi-bootstrap.md) and [`docs/verification/pi-rtk.md`](docs/verification/pi-rtk.md).
 
 - [ ] `pi --version` reports the installed Pi.
 - [ ] `pi auth check --provider minimax --model MiniMax-M3.1-Flash` reports the credential as resolved.
@@ -112,6 +113,7 @@ These need the real machine and an authorised provider, so they are not covered 
 - [ ] `/skill:start-planning` loads the skill from `~/.agents/skills/start-planning`.
 - [ ] A bounded code edit in a disposable worktree finishes without the model repeating the same tool call.
 - [ ] No agent-runtime tool is exposed in Pi.
+- [ ] `rtk --version` reports the binary Pi rewrites commands through, and `pi -p "run git status"` prints rtk's compact output.
 
 The last two are automated behind a flag, so a new machine can repeat them instead of guessing: `PI_LIVE=1 python3 -B -m unittest discover -s tests -p test_pi_acceptance.py`.
 

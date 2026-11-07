@@ -343,6 +343,25 @@ report_pi_skills() {
   done
 }
 
+# Pi's RTK optimizer (npm:pi-rtk-optimizer) rewrites every bash command through the
+# rtk binary, which prints the compact form of git, build and test output. The package is
+# declared in the tracked base settings, so Pi installs it at its next start; the binary
+# itself is a prerequisite this installer never installs. It is detected and reported, and
+# every command still runs unchanged when it is missing.
+report_pi_rtk() {
+  local rtk_bin packages
+  rtk_bin="$(command -v rtk 2>/dev/null || true)"
+  if [[ -z "$rtk_bin" ]]; then
+    warn "rtk not installed; Pi's RTK optimizer stays idle until: brew install rtk"
+  else
+    ok "rtk found at $rtk_bin ($("$rtk_bin" --version 2>/dev/null || echo 'version unknown'))"
+  fi
+  packages="$(python3 -c 'import json,sys; print(", ".join(json.load(open(sys.argv[1])).get("packages", [])))' \
+    "$PI_BASE_SETTINGS" 2>/dev/null || true)"
+  [[ -n "$packages" ]] && info "Pi installs these packages at its next start: $packages"
+  return 0
+}
+
 # Pi has no permission prompts, so the mutating agent-runtime tools are not exposed
 # there yet: the server entry is removed (other servers stay) and the file is backed up.
 guard_pi_mcp() { # agent_dir
@@ -406,6 +425,7 @@ setup_pi() {
   mkdir -p "$agent_dir" || { warn "could not create $agent_dir; Pi setup skipped"; return 0; }
   setup_pi_settings "$agent_dir"
   report_pi_skills
+  report_pi_rtk
   guard_pi_mcp "$agent_dir"
   info "authorise a provider inside Pi with /login (or export MINIMAX_API_KEY); this installer never writes credentials"
 }

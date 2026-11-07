@@ -188,6 +188,34 @@ class PiBootstrapTest(HomeCase):
         self.assertFalse((self.home / ".claude/settings.json").exists())
         self.assertFalse((self.home / ".codex/config.toml").exists())
 
+    # S7: the RTK optimizer is declared for Pi, and its binary is a reported prerequisite.
+    def test_the_pi_base_declares_the_rtk_optimizer_package(self):
+        """S7 the tracked Pi base declares the RTK package, and the user's own packages survive."""
+        (self.agent_dir()).mkdir(parents=True)
+        live = self.agent_dir() / "settings.json"
+        live.write_text(json.dumps({"packages": ["npm:pi-context-view", "npm:pi-rtk-optimizer@0.9.0"]}))
+        self.install()
+        packages = self.settings()["packages"]
+        self.assertIn("npm:pi-rtk-optimizer@0.9.0", packages)
+        self.assertIn("npm:pi-context-view", packages, "the user's own packages survive the merge")
+        self.assertEqual(packages.count("npm:pi-rtk-optimizer@0.9.0"), 1, "the package is declared once")
+
+    def test_the_installer_reports_the_rtk_binary_and_the_declared_packages(self):
+        """S7 the installer reports the rtk prerequisite and the packages Pi will install."""
+        done = self.install()
+        output = done.stdout + done.stderr
+        self.assertTrue((self.agent_dir() / "settings.json").is_file())
+        self.assertIn("npm:pi-rtk-optimizer@0.9.0", output)
+        self.assertRegex(output, r"rtk (found at|not installed)")
+
+    def test_a_missing_rtk_binary_is_reported_and_the_install_still_succeeds(self):
+        """S7 a missing rtk is a reported prerequisite, never a failure."""
+        done = self.install(**self.pi_only_env())
+        output = done.stdout + done.stderr
+        self.assertIn("rtk not installed", output)
+        self.assertIn("brew install rtk", output)
+        self.assertTrue((self.agent_dir() / "settings.json").is_file())
+
     # S4: nothing secret is tracked in this repo.
     def test_tracked_pi_files_hold_no_credentials(self):
         """S4 no tracked file holds a credential or a private endpoint."""

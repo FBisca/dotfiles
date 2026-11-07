@@ -1,4 +1,5 @@
 {
   "$schema": "https://pi.dev/schemas/settings.schema.json",
-  "enableSkillCommands": true
+  "enableSkillCommands": true,
+  "packages": ["npm:pi-rtk-optimizer@0.9.0"]
 }

@@ -1,0 +1,39 @@
+{
+  "enabled": true,
+  "enableAccessRequestTool": true,
+  "permissionPromptTimeoutSeconds": 600,
+  "network": {
+    "allowedDomains": [
+      "*"
+    ],
+    "disabled": true,
+    "allowLocalBinding": true,
+    "allowSSHAgentSocket": true
+  },
+  "filesystem": {
+    "denyRead": [],
+    "allowRead": [
+      "/"
+    ],
+    "allowWrite": [
+      "/"
+    ],
+    "denyWrite": [
+      "/**.env",
+      "/**.env.*",
+      "/**/*.pem",
+      "/**/*.key",
+      "/**/*.p12",
+      "~/.netrc",
+      "~/.npmrc",
+      "~/.ssh/id_*",
+      "~/.aws/credentials",
+      "~/.docker/config.json",
+      "~/.kube/config",
+      "~/.gnupg",
+      "~/.config/gh/hosts.yml",
+      "~/.claude/.credentials.json",
+      "~/.pi/agent/auth.json"
+    ]
+  }
+}

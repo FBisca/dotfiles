@@ -99,6 +99,11 @@ Skills and the workflow they implement come from [`agent-skills`](https://github
 - Skills are not copied or forked. Pi discovers the symlinks in `~/.agents/skills` that the installer already links, and the installer reports the skills it found and the ones that are missing (a missing skill is reported, never invented).
 - No credentials are written. Authorise a provider inside Pi with `/login`, or export `MINIMAX_API_KEY` and let Pi read it from the environment; `auth.json` is never touched.
 - Pi has no permission prompts, so the `agent-runtime` MCP server is removed from `~/.pi/agent/mcp.json` (other servers stay and the previous file is backed up) until a safety adapter is approved.
+- `agents/.pi/sandbox.base.json` is the tracked base for the [pi-sandbox](https://pi.dev/packages/pi-sandbox) extension, merged into `~/.pi/agent/sandbox.json` (Pi's global sandbox rules). The extension itself is installed separately with `pi install npm:pi-sandbox`; this repo only manages its rules.
+- `$DOTFILES_PRIVATE/pi-sandbox.json` is the optional private overlay for machine-specific rules (extra domains, extra writable paths).
+- The live `~/.pi/agent/sandbox.json` belongs to the user: base and overlay are merged *under* it, so the grants that a permission prompt wrote ("allow for all projects") survive. A file that is not valid JSON is backed up as `sandbox.json.bak-<timestamp>` and left untouched.
+- The sandbox is autonomous: `allowRead`/`allowWrite` are `/` and the network is unrestricted (`network.disabled`), so Pi never stops to ask. The `denyWrite` list is the whole safety net — every `.env` and `.env.*` on the machine (`/**.env`, `/**.env.*`) plus keys, tokens and credential files (`*.pem`, `*.key`, `*.p12`, `~/.netrc`, `~/.npmrc`, `~/.ssh/id_*`, `~/.aws/credentials`, `~/.config/gh/hosts.yml`, `~/.claude/.credentials.json`, `~/.pi/agent/auth.json`, and more). `denyWrite` is never prompted: those paths are hard-blocked.
+- To trade autonomy for safety, narrow `allowWrite` (for example to `["~"]` or `["."]`) or set `network.allowedDomains` to a list instead of `["*"]`. To drop the sandbox for one session, run `pi --no-sandbox` or press `Alt+S`.
 
 `./install.sh --pi-only` links the skills and sets Pi up without touching Claude Code or Codex.
 

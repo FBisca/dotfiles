@@ -188,6 +188,78 @@ class PiBootstrapTest(HomeCase):
         self.assertFalse((self.home / ".claude/settings.json").exists())
         self.assertFalse((self.home / ".codex/config.toml").exists())
 
+    # S7: the pi-sandbox rules are tracked and the user's own grants survive.
+    def sandbox(self):
+        return json.loads((self.agent_dir() / "sandbox.json").read_text())
+
+    def test_new_home_gets_the_tracked_sandbox_rules(self):
+        """S7 the tracked sandbox base is written to Pi's global sandbox file."""
+        self.install()
+        live = self.agent_dir() / "sandbox.json"
+        self.assertTrue(live.is_file())
+        sandbox = self.sandbox()
+        self.assertIs(sandbox["enabled"], True)
+        self.assertIn("*", sandbox["network"]["allowedDomains"])
+        self.assertIn("/", sandbox["filesystem"]["allowWrite"])
+        self.assertIn("/**.env", sandbox["filesystem"]["denyWrite"])
+
+    def test_the_sandbox_rules_are_autonomous_and_still_block_env_files(self):
+        """S7 the rules never prompt, and no .env can be written anywhere."""
+        self.install()
+        sandbox = self.sandbox()
+        self.assertEqual(sandbox["filesystem"]["allowWrite"], ["/"])
+        self.assertEqual(sandbox["filesystem"]["allowRead"], ["/"])
+        self.assertEqual(sandbox["filesystem"]["denyRead"], [])
+        self.assertIs(sandbox["network"]["disabled"], True)
+        self.assertIn("*", sandbox["network"]["allowedDomains"])
+        for pattern in ("/**.env", "/**.env.*"):
+            self.assertIn(pattern, sandbox["filesystem"]["denyWrite"])
+        for secret in ("~/.ssh/id_*", "~/.netrc", "~/.pi/agent/auth.json"):
+            self.assertIn(secret, sandbox["filesystem"]["denyWrite"])
+
+    def test_the_live_sandbox_file_keeps_the_grants_the_user_made(self):
+        """S7 a grant in the live file survives the merge."""
+        (self.agent_dir()).mkdir(parents=True)
+        live = self.agent_dir() / "sandbox.json"
+        live.write_text(json.dumps({"network": {"allowedDomains": ["example.com"]},
+                                    "filesystem": {"allowWrite": ["~/notes"]}}))
+        self.install()
+        sandbox = self.sandbox()
+        self.assertIn("example.com", sandbox["network"]["allowedDomains"])
+        self.assertIn("*", sandbox["network"]["allowedDomains"])
+        self.assertIn("~/notes", sandbox["filesystem"]["allowWrite"])
+        backups = list(self.agent_dir().glob("sandbox.json.bak-*"))
+        self.assertEqual(len(backups), 1, "the previous file is backed up")
+
+    def test_an_invalid_sandbox_file_is_backed_up_and_left_untouched(self):
+        """S7 a broken sandbox file is backed up, not replaced."""
+        (self.agent_dir()).mkdir(parents=True)
+        live = self.agent_dir() / "sandbox.json"
+        live.write_text("{not json")
+        done = self.install()
+        self.assertEqual(live.read_text(), "{not json")
+        self.assertEqual(len(list(self.agent_dir().glob("sandbox.json.bak-*"))), 1)
+        self.assertIn("not valid JSON", done.stdout + done.stderr)
+
+    def test_the_private_sandbox_overlay_is_merged_and_is_not_tracked(self):
+        """S7 machine-specific rules live in the private overlay, never in the repo."""
+        overlay = self.tmp / "overlay"
+        overlay.mkdir()
+        (overlay / "pi-sandbox.json").write_text(json.dumps({"network": {"allowedDomains": ["only.example"]}}))
+        self.install(DOTFILES_PRIVATE=overlay)
+        self.assertIn("only.example", self.sandbox()["network"]["allowedDomains"])
+        tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+        self.assertNotIn("pi-sandbox.json", tracked)
+
+    def test_a_rerun_leaves_the_sandbox_file_alone(self):
+        """S7 the installer is idempotent for the sandbox rules."""
+        self.install()
+        live = self.agent_dir() / "sandbox.json"
+        first = live.read_text()
+        self.install()
+        self.assertEqual(live.read_text(), first)
+        self.assertEqual(list(self.agent_dir().glob("sandbox.json.bak-*")), [])
+
     # S4: nothing secret is tracked in this repo.
     def test_tracked_pi_files_hold_no_credentials(self):
         """S4 no tracked file holds a credential or a private endpoint."""

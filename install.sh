@@ -1,9 +1,10 @@
 #!/bin/bash
 # Install the dotfiles: link skills, wire the agent runtime, generate agent config, stow the rest.
 #
-# Usage: ./install.sh [--no-stow] [--upstream] [-h]
+# Usage: ./install.sh [--no-stow] [--upstream] [--pi-only] [-h]
 #   --no-stow    skip GNU Stow (skills, runtime and generated config still run)
 #   --upstream   also reinstall the upstream skills agent-skills does not carry
+#   --pi-only    only link the skills and set up Pi; leave Claude Code and Codex alone
 #
 # Environment (all optional):
 #   AGENT_SKILLS_DIR   agent-skills checkout      (default ~/developer/agent-skills, cloned if missing)
@@ -40,11 +41,13 @@ die() { printf '%b[ERROR]%b %s\n' "$RED" "$NC" "$1" >&2; exit 1; }
 
 DO_STOW=1
 DO_UPSTREAM=0
+DO_PI_ONLY=0
 for arg in "$@"; do
   case "$arg" in
     --no-stow) DO_STOW=0 ;;
     --upstream) DO_UPSTREAM=1 ;;
-    -h | --help) sed -n '2,16p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    --pi-only) DO_PI_ONLY=1 ;;
+    -h | --help) sed -n '2,17p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown option: $arg (see --help)" ;;
   esac
 done
@@ -277,6 +280,136 @@ setup_config() {
     "$CODEX_RUNTIME_KEYS" ${overlay[@]+"${overlay[@]}"}
 }
 
+# --- pi -----------------------------------------------------------------------------
+# Pi (https://pi.dev) is a standalone harness. Its own installer owns the binary; this
+# installer only manages the user's Pi preferences and never writes credentials: keys
+# stay in Pi's auth.json, in the environment (Pi reads MINIMAX_API_KEY and friends) or
+# in the private overlay, never in a tracked file. The skills are not copied: Pi
+# discovers the symlinks in ~/.agents/skills that setup_skills already links.
+PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
+PI_SKILL_DIR="$HOME/.agents/skills"
+PI_BASE_SETTINGS="$ROOT/agents/.pi/settings.base.json"
+PI_REQUIRED_SKILLS=(start-planning grilling)
+
+# Pi's settings.json is the user's own file: base and private overlay are merged under
+# it, so anything Pi or the user wrote there survives. A file that is not valid JSON is
+# backed up and left alone rather than replaced.
+setup_pi_settings() { # agent_dir
+  local agent_dir="$1"
+  local live="$agent_dir/settings.json"
+  local private_overlay="$DOTFILES_PRIVATE/pi-settings.json"
+  local new="$live.new.$$"
+  local args=(json "$new" "$PI_BASE_SETTINGS")
+  [[ -f "$private_overlay" ]] && args+=("$private_overlay")
+  if [[ -e "$live" ]]; then
+    if ! python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$live" 2>/dev/null; then
+      cp -L "$live" "$live.bak-$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+      warn "$live is not valid JSON; left untouched (previous copy saved as $live.bak-*)"
+      return 0
+    fi
+    args+=("$live")
+  fi
+  if ! python3 "$ROOT/scripts/merge-config.py" "${args[@]}"; then
+    rm -f "$new"
+    warn "could not generate $live; it was left untouched"
+    return 0
+  fi
+  if [[ -f "$live" ]] && ! cmp -s "$live" "$new"; then
+    cp -L "$live" "$live.bak-$(date +%Y%m%d%H%M%S)"
+    warn "$live changed; the previous copy was saved as $live.bak-*"
+  fi
+  mv -f "$new" "$live" # replaces a symlink to an old file without touching its target
+  ok "Pi settings ready at $live"
+}
+
+# What Pi will find when it starts, and what it will not: a missing skill is reported
+# as a missing prerequisite, never invented here.
+report_pi_skills() {
+  local entry name count=0
+  if [[ ! -d "$PI_SKILL_DIR" ]]; then
+    warn "no $PI_SKILL_DIR directory; Pi finds no managed skills"
+    return 0
+  fi
+  for entry in "$PI_SKILL_DIR"/*; do
+    [[ -d "$entry" ]] && count=$((count + 1))
+  done
+  ok "Pi discovers $count skill(s) in $PI_SKILL_DIR"
+  for name in "${PI_REQUIRED_SKILLS[@]}"; do
+    if [[ -f "$PI_SKILL_DIR/$name/SKILL.md" ]]; then
+      ok "Pi skill ready: $name"
+    else
+      warn "missing Pi skill prerequisite: $name (not installed here; it lives in agent-skills)"
+    fi
+  done
+}
+
+# Pi has no permission prompts, so the mutating agent-runtime tools are not exposed
+# there yet: the server entry is removed (other servers stay) and the file is backed up.
+guard_pi_mcp() { # agent_dir
+  local agent_dir="$1"
+  local mcp="$agent_dir/mcp.json"
+  [[ -f "$mcp" ]] || return 0
+  grep -q 'agent-runtime' "$mcp" || return 0
+  local backup
+  backup="$mcp.bak-$(date +%Y%m%d%H%M%S)"
+  cp "$mcp" "$backup"
+  if python3 - "$mcp" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as handle:
+    data = json.load(handle)
+servers = data.get("mcpServers", {})
+removed = [name for name in servers if "agent-runtime" in name]
+if not removed:
+    sys.exit(1)
+for name in removed:
+    del servers[name]
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, indent=2)
+    handle.write("\n")
+PY
+  then
+    ok "Pi does not expose the agent-runtime MCP tools (previous file: $backup)"
+  else
+    cp "$backup" "$mcp"
+    warn "could not disable the agent-runtime MCP server in $mcp; it was left as it was"
+  fi
+}
+
+setup_pi() {
+  local agent_dir="$PI_AGENT_DIR"
+  local pi_bin="" version=""
+  # Prerequisite: the Pi CLI. This installer never installs or updates it.
+  if command -v pi >/dev/null 2>&1; then
+    pi_bin="$(command -v pi)"
+  elif [[ -x "$agent_dir/bin/pi" ]]; then
+    pi_bin="$agent_dir/bin/pi"
+  fi
+  if [[ -n "$pi_bin" ]]; then
+    version="$("$pi_bin" --version 2>/dev/null || true)"
+    ok "Pi ${version:-installed} found at $pi_bin"
+  else
+    warn "Pi is not installed; install it with: curl -fsSL https://pi.dev/install.sh | sh"
+  fi
+  if [[ -e "$agent_dir" && ! -d "$agent_dir" ]]; then
+    warn "$agent_dir exists and is not a directory; Pi setup skipped"
+    return 0
+  fi
+  local parent
+  parent="$(dirname "$agent_dir")"
+  if [[ -e "$parent" && ! -d "$parent" ]]; then
+    warn "$parent exists and is not a directory; Pi setup skipped"
+    return 0
+  fi
+  mkdir -p "$agent_dir" || { warn "could not create $agent_dir; Pi setup skipped"; return 0; }
+  setup_pi_settings "$agent_dir"
+  report_pi_skills
+  guard_pi_mcp "$agent_dir"
+  info "authorise a provider inside Pi with /login (or export MINIMAX_API_KEY); this installer never writes credentials"
+}
+
 # --- stow -----------------------------------------------------------------------
 MODULES=(git zsh nvim mise gh kitty wezterm fzf env slack agents bin)
 
@@ -299,6 +432,11 @@ stow_modules() {
 
 clone_if_missing "$AGENT_SKILLS_DIR" "$AGENT_SKILLS_REPO"
 setup_skills
+setup_pi
+if [[ "$DO_PI_ONLY" -eq 1 ]]; then
+  ok "done (Pi only: skills linked and Pi set up; Claude Code and Codex were left alone)"
+  exit 0
+fi
 setup_runtime
 setup_rastro
 setup_config
@@ -314,4 +452,5 @@ Next steps:
   2. Restart Claude Code and Codex so they pick up the generated config.
   3. Optional tools: oh-my-zsh, mise, gh (gh auth login), Nerd Fonts, jq, ripgrep, fzf.
   4. Upstream skills: ./install.sh --upstream
+  5. Pi: start it with 'pi', then /login to authorise a provider (the installer never writes credentials).
 EOF

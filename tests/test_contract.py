@@ -45,11 +45,13 @@ class CodexWiringTest(unittest.TestCase):
     def test_pre_tool_use_hooks_guard_bash_and_the_runtime_tools(self):
         hooks = CODEX["hooks"]
         pre = hooks["PreToolUse"]
-        self.assertEqual([entry["matcher"] for entry in pre], ["^Bash$", "^mcp__agent-runtime__.*$"])
+        self.assertEqual([entry["matcher"] for entry in pre], ["^Bash$", "^mcp__agent-runtime__.*$", "^Bash$"])
         self.assertRegex("mcp__agent-runtime__task", pre[1]["matcher"])
-        for entry in pre:
+        for entry in pre[:2]:
             self.assertEqual(entry["hooks"][0]["command"], '"$HOME/.local/bin/agent-runtime-hook" --cli codex')
             self.assertEqual(entry["hooks"][0]["timeout"], 5)
+
+        self.assertEqual(pre[2]["hooks"][0]["command"], "rtk hook codex")
 
     def test_lead_liveness_hooks_run_the_shim_per_event(self):
         hooks = CODEX["hooks"]
@@ -73,7 +75,7 @@ class ClaudeSettingsTest(unittest.TestCase):
     def test_R75_plugin_and_marketplace_are_enabled_and_tools_allowed(self):
         self.assertIs(SETTINGS["enabledPlugins"].get("agent-runtime@agent-runtime"), True)
         self.assertIn(PLUGIN_TOOL, SETTINGS["permissions"]["allow"])
-        self.assertNotIn("PreToolUse", SETTINGS.get("hooks", {}), "subagent denials come from the plugin's own hooks")
+        self.assertEqual(SETTINGS["hooks"]["PreToolUse"][0]["hooks"][0]["command"], "rtk hook claude")
 
     def test_R87_marketplace_is_a_home_relative_directory_source(self):
         market = SETTINGS["extraKnownMarketplaces"]["agent-runtime"]["source"]
@@ -84,7 +86,6 @@ class ClaudeSettingsTest(unittest.TestCase):
     def test_base_settings_hold_nothing_machine_specific(self):
         text = json.dumps(SETTINGS)
         self.assertNotIn("autoMode", SETTINGS)
-        self.assertNotIn("hooks", SETTINGS)
         self.assertNotIn("heavy-jobs", text)
 
     def test_statusline_script_is_tracked_and_referenced_home_relative(self):

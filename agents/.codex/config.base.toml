@@ -143,3 +143,10 @@ timeout = 5
 type = "command"
 command = "\"$HOME/.local/bin/agent-runtime-hook\" context --cli codex"
 timeout = 5
+
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "rtk hook codex"

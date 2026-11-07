@@ -6,6 +6,8 @@
 # Base configs are inputs: install.sh merges them with the private overlay into the live files.
 ^/\.claude/settings\.base\.json
 ^/\.codex/config\.base\.toml
+# Pi's agent directory is managed by install.sh (settings merged with the private overlay).
+^/\.pi
 # Skills are real directories filled by install.sh (symlinks into agent-skills, npx installs).
 ^/\.agents/skills
 ^/\.claude/skills

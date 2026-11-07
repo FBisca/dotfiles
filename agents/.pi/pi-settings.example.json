@@ -1,0 +1,5 @@
+{
+  "defaultProvider": "minimax",
+  "defaultModel": "MiniMax-M3.1-Flash",
+  "defaultThinkingLevel": "low"
+}

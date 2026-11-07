@@ -104,7 +104,7 @@ Skills and the workflow they implement come from [`agent-skills`](https://github
 
 ### Manual checks
 
-These need the real machine and an authorised provider, so they are not covered by the automated tests (see `docs/plans/2026-11-07-pi-bootstrap.plan.md`):
+These need the real machine and an authorised provider, so they are not covered by the automated tests. The requirements they cover live in [`docs/specs/agent-environments.md`](docs/specs/agent-environments.md); what the last run found is recorded in [`docs/verification/pi-bootstrap.md`](docs/verification/pi-bootstrap.md).
 
 - [ ] `pi --version` reports the installed Pi.
 - [ ] `pi auth check --provider minimax --model MiniMax-M3.1-Flash` reports the credential as resolved.
@@ -112,6 +112,8 @@ These need the real machine and an authorised provider, so they are not covered 
 - [ ] `/skill:start-planning` loads the skill from `~/.agents/skills/start-planning`.
 - [ ] A bounded code edit in a disposable worktree finishes without the model repeating the same tool call.
 - [ ] No agent-runtime tool is exposed in Pi.
+
+The last two are automated behind a flag, so a new machine can repeat them instead of guessing: `PI_LIVE=1 python3 -B -m unittest discover -s tests -p test_pi_acceptance.py`.
 
 ## Tests and CI
 

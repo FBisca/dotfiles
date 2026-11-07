@@ -20,8 +20,12 @@ class MovedContentTest(unittest.TestCase):
         self.assertIn("https://github.com/FBisca/agent-skills/blob/main/docs/workflow.md", (ROOT / "README.md").read_text())
 
     def test_runtime_and_skills_are_not_vendored_any_more(self):
-        for path in ("agents/plugins", "agents/.claude-plugin", "docs/specs", "agents/.claude/skills"):
+        for path in ("agents/plugins", "agents/.claude-plugin", "agents/.claude/skills"):
             self.assertFalse((ROOT / path).exists(), path)
+        # The runtime's own spec lives in agent-runtime; this repo keeps the spec
+        # for what it owns itself: the installer and the agent environments it sets up.
+        self.assertFalse((ROOT / "docs/specs/agent-runtime.md").exists(), "the runtime spec lives in agent-runtime")
+        self.assertTrue((ROOT / "docs/specs/agent-environments.md").is_file(), "this repo keeps its own living spec")
         self.assertEqual(list((ROOT / "agents/.agents").glob("skills/*")) if (ROOT / "agents/.agents/skills").exists() else [], [])
         self.assertEqual([p for p in tracked() if p.startswith("bin/bin/agent-runtime")], [])
         self.assertEqual([p for p in tracked() if p.startswith("docs/plans/2026-10-30")], [])

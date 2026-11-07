@@ -1,6 +1,6 @@
 # Plan: Pi Bootstrap with MiniMax and Shared Skills
 
-Slug: `pi-bootstrap`. Living spec: `docs/specs/agent-environments.md`. Status: **APPROVED — READY FOR EXECUTION**.
+Slug: `pi-bootstrap`. Living spec: `docs/specs/agent-environments.md`. Status: ARCHIVED 2026-11-07.
 
 ## Why now
 
@@ -72,9 +72,10 @@ Pi must become usable **before** we improve the other repositories, because Pi +
 
 | # | What it delivers | Satisfies | Blocked by | Paths | Size | Difficulty | Owner | Status |
 |---|---|---|---|---|---|---|---|---|
-| T1 | Add an additive Pi configuration/bootstrap path that reuses existing skill links, handles already-present `~/.pi` safely, checks prerequisites and keeps provider-specific settings private. | S2, S3, S4, S5, S6 | none | `install.sh`, `agents/.pi/`, `README.md` | regular | simple | agent | TO-DO |
-| T2 | Add offline installer tests for new-home, existing-home, repeated install, skills discovery paths, secret safety and unchanged Claude/Codex outputs. | S2, S3, S4, S5, S6 | T1 | `tests/`, `install.sh` | regular | simple | agent | TO-DO |
-| T3 | Validate MiniMax subscription compatibility and complete a bounded Pi smoke run with discovered shared skills; explicitly record any unavailable `grilling` prerequisite without storing credentials. | S1, S3, S5, S6 | T2 | `README.md` |  |  | user | TO-DO |
+| T1 | Add an additive Pi configuration/bootstrap path that reuses existing skill links, handles already-present `~/.pi` safely, checks prerequisites and keeps provider-specific settings private. | S2, S3, S4, S5, S6 | none | `install.sh`, `agents/.pi/`, `agents/.stow-local-ignore`, `README.md` | regular | simple | agent | COMPLETE (PR #15, squash 40ca070; installer path for the Pi preferences, the skill report and the MCP guard) |
+| T2 | Add offline installer tests for new-home, existing-home, repeated install, skills discovery paths, secret safety and unchanged Claude/Codex outputs. | S2, S3, S4, S5, S6 | T1 | `tests/`, `install.sh` | regular | simple | agent | COMPLETE (PR #15, squash 40ca070; the Pi tests were tagged with their scenario IDs and the repo hygiene test narrowed to the runtime's own spec) |
+| T3 | Validate MiniMax subscription compatibility and complete a bounded Pi smoke run with discovered shared skills; explicitly record any unavailable `grilling` prerequisite without storing credentials. | S1, S3, S5, S6 | T2 | `README.md`, `docs/verification/pi-bootstrap.md` | | | user | COMPLETE 2026-11-07 (manual run on the real machine: Pi 1.5.0, `pi auth check` ready, `--pi-only` install reported 38 skills with `start-planning` and `grilling` ready, `/skill:start-planning` loaded from `~/.agents/skills`, the bounded edit took one tool call in 4.0 s, `pi mcp list` empty; recorded in `docs/verification/pi-bootstrap.md`) |
+| T4 | Publish the living spec for the agent environments this repo owns and record the manual acceptance, so the scenarios outlive the plan. | S1, S2, S3, S4, S5, S6 | T3 | `docs/specs/agent-environments.md`, `docs/verification/pi-bootstrap.md`, `tests/test_pi_acceptance.py`, `README.md` | small | simple | agent | COMPLETE (the living spec carries R1–R6 with their provenance; the live smoke is repeatable behind `PI_LIVE=1`) |
 
 **Ready-to-build handoff:** place this plan in the `dotfiles` checkout at `docs/plans/2026-11-07-pi-bootstrap.plan.md`, use the approved plan, and run `/orchestrate docs/plans/2026-11-07-pi-bootstrap.plan.md` from a currently working Claude/Codex lead **or** implement its small tickets directly in Pi after the manual preflight. The existing `orchestrate.py` does not yet support Pi as a `--cli` backend; do not claim otherwise.
 
@@ -85,8 +86,14 @@ P0 continues to use the existing **dotfiles installer** for personal Pi configur
 
 ## Execution preflight checklist
 
-- [ ] Temporary HOME fixture test proves existing Claude/Codex symlinks and configs unchanged on second install.
-- [ ] Pi installation/version, MiniMax credentials and subscription-specific API access are manually validated without logging secrets.
-- [ ] One real edit/test in a disposable worktree completes within declared time/iteration budget, or is recorded as blocked.
-- [ ] Existing `~/.agents/skills` source and `start-planning` discovery verified; absent separately installed `grilling` reported.
-- [x] Owner approved this plan on 2026-11-07. **Implementation has not yet started.**
+- [x] Temporary HOME fixture test proves existing Claude/Codex symlinks and configs unchanged on second install.
+- [x] Pi installation/version, MiniMax credentials and subscription-specific API access are manually validated without logging secrets.
+- [x] One real edit/test in a disposable worktree completes within declared time/iteration budget, or is recorded as blocked.
+- [x] Existing `~/.agents/skills` source and `start-planning` discovery verified; absent separately installed `grilling` reported.
+- [x] Owner approved this plan on 2026-11-07. **Implemented in PR #15 and archived on 2026-11-07.**
+
+## Archive notes (2026-11-07)
+
+- The living spec `docs/specs/agent-environments.md` was created here. The repo's hygiene test used to forbid a `docs/specs` folder at all, because the runtime's specs moved to `agent-runtime`; it now forbids the runtime's own spec by name and expects this repo's spec for the environments it installs.
+- The scenarios are archived as R1–R6 in that spec; `tests/test_pi.py` carries the scenario IDs and `tests/test_pi_acceptance.py` keeps the published checklist, the recorded run and the repeatable live smoke.
+- The open subscription question stays open in `docs/verification/pi-bootstrap.md`: the credential resolves and the API call is authorised, but whether the MiniMax plan covers this API usage rather than a separate balance is not observable from the client side.

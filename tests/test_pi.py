@@ -34,6 +34,7 @@ class PiBootstrapTest(HomeCase):
 
     # S2: the Pi path is additive and leaves the other tools alone.
     def test_new_home_gets_pi_settings_and_no_credentials(self):
+        """S2 S4 a new home gets the Pi base settings and no credentials."""
         self.install()
         live = self.agent_dir() / "settings.json"
         self.assertTrue(live.is_file())
@@ -47,6 +48,7 @@ class PiBootstrapTest(HomeCase):
             self.assertNotIn(secret, text, secret)
 
     def test_existing_pi_settings_keep_the_user_keys(self):
+        """S2 the user's own Pi settings survive the merge."""
         (self.agent_dir()).mkdir(parents=True)
         live = self.agent_dir() / "settings.json"
         live.write_text(json.dumps({"defaultModel": "MiniMax-M3.1-Flash", "lastChangelogVersion": "1.5.0"}))
@@ -60,6 +62,7 @@ class PiBootstrapTest(HomeCase):
         self.assertEqual(json.loads(backups[0].read_text())["defaultModel"], "MiniMax-M3.1-Flash")
 
     def test_invalid_pi_settings_are_backed_up_and_left_untouched(self):
+        """S2 a broken live file is backed up, not replaced."""
         (self.agent_dir()).mkdir(parents=True)
         live = self.agent_dir() / "settings.json"
         live.write_text("{not json")
@@ -69,6 +72,7 @@ class PiBootstrapTest(HomeCase):
         self.assertIn("not valid JSON", done.stdout + done.stderr)
 
     def test_rerunning_the_installer_leaves_pi_settings_alone(self):
+        """S2 the installer is idempotent for the Pi settings."""
         self.install()
         live = self.agent_dir() / "settings.json"
         first = live.read_text()
@@ -77,6 +81,7 @@ class PiBootstrapTest(HomeCase):
         self.assertEqual(list(self.agent_dir().glob("settings.json.bak-*")), [])
 
     def test_a_symlinked_pi_settings_file_is_replaced_without_touching_its_target(self):
+        """S2 a symlinked live file is replaced without touching its target."""
         target = self.tmp / "pi-settings.json"
         target.write_text(json.dumps({"defaultModel": "MiniMax-M3.1-Flash"}))
         self.agent_dir().mkdir(parents=True)
@@ -89,12 +94,14 @@ class PiBootstrapTest(HomeCase):
         self.assertEqual(len(list(self.agent_dir().glob("settings.json.bak-*"))), 1)
 
     def test_a_pi_directory_that_is_not_a_directory_is_left_alone(self):
+        """S6 a conflicting path is reported and left alone."""
         (self.home / ".pi").write_text("not a directory")
         done = self.install()
         self.assertIn("is not a directory", done.stdout + done.stderr)
         self.assertEqual((self.home / ".pi").read_text(), "not a directory")
 
     def test_the_private_overlay_sets_the_provider_and_is_not_tracked(self):
+        """S4 the provider choice lives in the private overlay, never in the repo."""
         overlay = self.tmp / "overlay"
         overlay.mkdir()
         (overlay / "pi-settings.json").write_text(json.dumps({"defaultProvider": "minimax",
@@ -107,6 +114,7 @@ class PiBootstrapTest(HomeCase):
         self.assertNotIn("pi-settings.json", tracked)
 
     def test_a_missing_pi_binary_is_reported_and_no_provider_is_chosen(self):
+        """S6 a missing Pi is a clear prerequisite error, with no provider fallback."""
         done = self.install(**self.pi_only_env())
         self.assertIn("Pi is not installed", done.stdout + done.stderr)
         self.assertIn("https://pi.dev/install.sh", done.stdout + done.stderr)
@@ -114,6 +122,7 @@ class PiBootstrapTest(HomeCase):
 
     # S3: the skills Pi finds are the ones already linked, and a missing one is reported.
     def test_pi_reports_the_linked_skills_and_the_missing_prerequisites(self):
+        """S3 the installed skills are reported and a missing one is not invented."""
         make_skills(self.skills, ["start-planning"])
         done = self.install()
         output = done.stdout + done.stderr
@@ -126,6 +135,7 @@ class PiBootstrapTest(HomeCase):
             self.assertTrue((link / "SKILL.md").is_file(), name)
 
     def test_a_user_file_inside_a_skill_directory_survives_a_rerun(self):
+        """S2 S3 the shared skill links survive a rerun."""
         note = self.home / ".agents/skills/alpha/NOTE.md"
         self.install()
         note.write_text("mine")
@@ -135,6 +145,7 @@ class PiBootstrapTest(HomeCase):
 
     # S5: Pi must not get the mutating agent-runtime tools.
     def test_the_agent_runtime_mcp_server_is_removed_from_pi_and_backed_up(self):
+        """S5 the mutating agent-runtime tools are not exposed in Pi."""
         (self.agent_dir()).mkdir(parents=True)
         mcp = self.agent_dir() / "mcp.json"
         mcp.write_text(json.dumps({"mcpServers": {
@@ -151,11 +162,13 @@ class PiBootstrapTest(HomeCase):
         self.assertIn("does not expose the agent-runtime MCP tools", done.stdout + done.stderr)
 
     def test_no_mcp_file_is_created_when_the_user_has_none(self):
+        """S5 no MCP configuration is invented for Pi."""
         self.install()
         self.assertFalse((self.agent_dir() / "mcp.json").exists())
 
     # S2: Claude Code and Codex are untouched by the Pi path.
     def test_claude_and_codex_files_are_byte_for_byte_the_same_after_a_rerun(self):
+        """S2 a rerun leaves the Claude Code and Codex files byte for byte the same."""
         self.install()
         claude = self.home / ".claude/settings.json"
         codex = self.home / ".codex/config.toml"
@@ -167,6 +180,7 @@ class PiBootstrapTest(HomeCase):
         self.assertEqual(before, after)
 
     def test_pi_only_leaves_claude_and_codex_untouched(self):
+        """S2 --pi-only never touches the Claude Code or Codex configuration."""
         done = subprocess.run([str(ROOT / "install.sh"), "--no-stow", "--pi-only"], env=self.env(), cwd=self.tmp,
                               capture_output=True, text=True, timeout=120)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
@@ -176,6 +190,7 @@ class PiBootstrapTest(HomeCase):
 
     # S4: nothing secret is tracked in this repo.
     def test_tracked_pi_files_hold_no_credentials(self):
+        """S4 no tracked file holds a credential or a private endpoint."""
         tracked = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, text=True,
                                  check=True).stdout.split("\0")
         for path in tracked:

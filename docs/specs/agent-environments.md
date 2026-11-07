@@ -1,6 +1,6 @@
 # Agent environments
 
-Paths: install.sh, agents/.pi/, agents/.stow-local-ignore, tests/test_pi.py, tests/test_pi_acceptance.py, README.md
+Paths: install.sh, agents/.pi/, agents/.stow-local-ignore, agents/.agents/RTK.md, tests/test_pi.py, tests/test_pi_acceptance.py, README.md
 
 The dotfiles installer owns one machine's agent environments. Claude Code and Codex are configured from `agents/.claude/settings.base.json` and `agents/.codex/config.base.toml`; Pi is configured from `agents/.pi/settings.base.json`. Each one is a tracked base merged with an optional private overlay and, for Claude Code and Codex, with the live file, so the user's own keys always win. The installer never writes credentials: they stay in the tool's own credential store, in the environment or in the private overlay.
 

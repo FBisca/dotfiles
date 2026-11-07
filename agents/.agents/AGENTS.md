@@ -11,3 +11,5 @@ Skills name a class (`small`, `medium`, `large`) and an effort, never a model. R
 | small | `model: "haiku"` | `gpt-6.1-luna` |
 | medium | `model: "sonnet"` | `gpt-6.1-terra` |
 | large | `model: "opus"` | `gpt-6.1-sol` |
+
+@RTK.md

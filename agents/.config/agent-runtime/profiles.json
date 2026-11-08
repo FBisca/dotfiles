@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "minimax": {
+    "claude-minimax": {
       "cli": "claude",
       "env": {
         "ANTHROPIC_BASE_URL": "https://api.minimax.io/anthropic",

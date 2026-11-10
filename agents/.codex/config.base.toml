@@ -120,6 +120,16 @@ command = "\"$HOME/.local/bin/agent-runtime-hook\" --cli codex"
 timeout = 5
 statusMessage = "Checking agent-runtime caller"
 
+# A worker may not write a plan's receipts through file edits either.
+[[hooks.PreToolUse]]
+matcher = "^apply_patch$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "\"$HOME/.local/bin/agent-runtime-hook\" --cli codex"
+timeout = 5
+statusMessage = "Checking file edits"
+
 # agent-runtime lead-liveness hooks: block a lead's Stop while it has unseen worker
 # results, and remind it after compact/clear and on each prompt. Trust them via /hooks.
 [[hooks.Stop]]

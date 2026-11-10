@@ -74,5 +74,8 @@ export ENABLE_LSP_TOOL=1
 export ANDROID_HOME="$HOME/Library/Android/sdk"
 export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
 
+# Agent Runtime
+export AGENT_RUNTIME_HOME="${HOME}/developer/agent-runtime"
+
 # TinyTeX (LaTeX)
 [[ -d "$HOME/Library/TinyTeX/bin/universal-darwin" ]] && export PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH"

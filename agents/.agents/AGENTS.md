@@ -6,10 +6,10 @@
 
 Skills name a class (`small`, `medium`, `large`) and an effort, never a model. Resolve the class here unless I said otherwise in this session; pass the skill's effort as `effort`.
 
-| Class | Claude | Codex |
-|---|---|---|
-| small | `model: "haiku"` | `gpt-6.1-luna` |
-| medium | `model: "sonnet"` | `gpt-6.1-terra` |
-| large | `model: "opus"` | `gpt-6.1-sol` |
+| Class | Claude | Codex | Pi |
+|---|---|---|---|
+| small | `model: "haiku"` | `gpt-6.1-luna` | `minimax/MiniMax-M3.1-Flash` |
+| medium | `model: "sonnet"` | `gpt-6.1-terra` | `ollama-cloud/glm-5.3` |
+| large | `model: "opus"` | `gpt-6.1-sol` | `ollama-cloud/kimi-k3.1-pro` |
 
 @RTK.md

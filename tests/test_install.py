@@ -178,6 +178,21 @@ class RuntimeWiringTest(HomeCase):
         self.assertTrue((target / "install.sh").is_file())
         self.assertTrue((self.home / ".local/bin/agent-runtime-mcp").exists())
 
+    def test_S6_the_orchestrator_from_the_runtime_env_is_linked_into_local_bin(self):
+        engine = self.runtime / ".venv/bin/agent-orchestrator"
+        engine.parent.mkdir(parents=True)
+        engine.write_text("#!/bin/sh\n")
+        engine.chmod(0o755)
+        self.install()
+        link = self.home / ".local/bin/agent-orchestrator"
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(Path(os.readlink(link)), engine)
+
+    def test_S6_a_runtime_without_its_env_links_no_orchestrator_and_still_installs(self):
+        self.install()
+        self.assertFalse((self.home / ".local/bin/agent-orchestrator").exists())
+        self.assertTrue((self.home / ".local/bin/agent-runtime-mcp").exists())
+
     @unittest.skipUnless(RUNTIME_SRC, "needs a local agent-runtime checkout (AGENT_RUNTIME_SRC)")
     def test_S6_codex_mcp_and_hook_commands_resolve_to_the_real_runtime(self):
         """The merged Codex config launches the MCP server and the hook through the installed shims."""

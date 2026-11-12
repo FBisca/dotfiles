@@ -196,11 +196,28 @@ setup_skills() {
 }
 
 # --- agent runtime ------------------------------------------------------------
+# The Herdr workbench mod runs `agent-orchestrator` by bare name, not through a shell, so it must be a real
+# file on PATH. It lives in the checkout's uv environment; that .venv/bin never goes on PATH itself, or its
+# python, pytest and ruff would shadow the machine's.
+link_orchestrator() {
+  local engine="$AGENT_RUNTIME_DIR/.venv/bin/agent-orchestrator"
+  if [[ ! -x "$engine" && -f "$AGENT_RUNTIME_DIR/pyproject.toml" ]] && command -v uv >/dev/null 2>&1; then
+    (cd "$AGENT_RUNTIME_DIR" && uv sync --frozen --all-packages >/dev/null 2>&1) || warn "uv sync failed in $AGENT_RUNTIME_DIR"
+  fi
+  if [[ -x "$engine" ]]; then
+    ln -sfn "$engine" "$HOME/.local/bin/agent-orchestrator"
+    ok "agent-orchestrator linked into $HOME/.local/bin"
+  else
+    warn "agent-orchestrator not linked: run uv sync --frozen --all-packages in $AGENT_RUNTIME_DIR, then this installer again"
+  fi
+}
+
 setup_runtime() {
   clone_if_missing "$AGENT_RUNTIME_DIR" "$AGENT_RUNTIME_REPO"
   [[ -x "$AGENT_RUNTIME_DIR/install.sh" ]] || die "$AGENT_RUNTIME_DIR/install.sh not found"
   BIN_DIR="$HOME/.local/bin" "$AGENT_RUNTIME_DIR/install.sh" >/dev/null
   ok "agent-runtime shims linked into $HOME/.local/bin"
+  link_orchestrator
   # Claude only registers a directory marketplace on an explicit add; settings alone are not enough.
   if command -v claude >/dev/null 2>&1 && [[ -d "$HOME/.claude/plugins" ]] && ! claude plugin list 2>/dev/null | grep -q 'agent-runtime@agent-runtime'; then
     claude plugin marketplace add "$AGENT_RUNTIME_DIR" >/dev/null 2>&1 || warn "could not add the agent-runtime marketplace"

@@ -23,7 +23,7 @@ Implement one assigned task at a time. You may receive another task in this same
 
 1. Check the task, checkout, ownership, acceptance criteria, and required checks.
 2. Read focused files and relevant local instructions. Use supplied file/symbol pointers before broad searches. Find the code before reading it, then read only the part the task needs. Read only the doc sections the task names, not whole documents.
-3. Implement the task and run relevant checks. Fix failures within scope. Report unrelated failures with evidence.
+3. Implement the task test-first with the `tdd` skill, and run relevant checks. Fix failures within scope. Report unrelated failures with evidence.
 4. Return a compact result and wait for another assignment.
 
 For related follow-ups, reuse established context and read only changed or newly relevant files. Recheck affected code after external edits or compaction. Never treat remembered source as current evidence.

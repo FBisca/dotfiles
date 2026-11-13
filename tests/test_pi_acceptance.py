@@ -27,7 +27,7 @@ CHECKLIST = {
     "S1": "pi --version",
     "S3": "/skill:start-planning",
     "S4": "pi auth check --provider minimax --model MiniMax-M3.1-Flash",
-    "S5": "No agent-runtime tool is exposed in Pi",
+    "S5": "`pi mcp list` shows the `agent-runtime` server",
     "S6": "bounded code edit in a disposable worktree",
 }
 
@@ -54,8 +54,10 @@ class PublishedChecklistTest(unittest.TestCase):
         text = SPEC.read_text()
         self.assertRegex(text, r"(?m)^Paths: .+")
         for number in range(1, 7):
-            self.assertRegex(text, rf"\*\*R{number}\*\*", f"R{number} is missing")
-            self.assertIn(f"(from pi-bootstrap/S{number})", text, f"R{number} has no provenance")
+            self.assertRegex(text, rf"(?m)^- \*\*R{number}\*\* .+\(from [^)]+/S\d+\)$", f"R{number} is missing")
+        for number in range(9, 14):
+            self.assertRegex(text, rf"(?m)^- \*\*R{number}\*\* .+\(from pi-agent-runtime-mcp/S\d+\)$",
+                             f"R{number} is missing")
 
     def test_the_rtk_requirements_and_record_are_published(self):
         """S7 S8 the spec keeps the RTK requirements and the last RTK run is recorded."""

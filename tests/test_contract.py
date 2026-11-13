@@ -45,13 +45,14 @@ class CodexWiringTest(unittest.TestCase):
     def test_pre_tool_use_hooks_guard_bash_and_the_runtime_tools(self):
         hooks = CODEX["hooks"]
         pre = hooks["PreToolUse"]
-        self.assertEqual([entry["matcher"] for entry in pre], ["^Bash$", "^mcp__agent-runtime__.*$", "^Bash$"])
+        self.assertEqual([entry["matcher"] for entry in pre],
+                         ["^Bash$", "^mcp__agent-runtime__.*$", "^apply_patch$", "^Bash$"])
         self.assertRegex("mcp__agent-runtime__task", pre[1]["matcher"])
-        for entry in pre[:2]:
+        for entry in pre[:3]:
             self.assertEqual(entry["hooks"][0]["command"], '"$HOME/.local/bin/agent-runtime-hook" --cli codex')
             self.assertEqual(entry["hooks"][0]["timeout"], 5)
 
-        self.assertEqual(pre[2]["hooks"][0]["command"], "rtk hook codex")
+        self.assertEqual(pre[3]["hooks"][0]["command"], "rtk hook codex")
 
     def test_lead_liveness_hooks_run_the_shim_per_event(self):
         hooks = CODEX["hooks"]
@@ -66,9 +67,9 @@ class CodexWiringTest(unittest.TestCase):
     def test_every_tool_the_runtime_serves_is_configured(self):
         if RUNTIME_SRC is None:
             self.skipTest("needs a local agent-runtime checkout")
-        text = (RUNTIME_SRC / "server" / "mcp_server.py").read_text()
+        text = (RUNTIME_SRC / "packages/agent-runtime/src/agent_runtime/mcp_server.py").read_text()
         for tool in TOOLS:
-            self.assertIn(f'("{tool}",', text)
+            self.assertRegex(text, rf'\(\s*"{tool}",', tool)
 
 
 class ClaudeSettingsTest(unittest.TestCase):

@@ -11,6 +11,8 @@ from support import ROOT, HomeCase, make_skills
 
 NEEDED_TOOLS = ["git", "python3", "sh", "bash", "dirname", "basename", "cp", "mv", "rm", "cmp", "date",
                  "grep", "find", "sed", "mkdir", "cat", "chmod", "ls", "readlink", "mktemp", "env", "ln"]
+# The user's provider choice lives in the base settings; the installer adds none of its own.
+BASE_PROVIDER = json.loads((ROOT / "agents/.pi/settings.base.json").read_text()).get("defaultProvider")
 
 
 class PiBootstrapTest(HomeCase):
@@ -40,7 +42,7 @@ class PiBootstrapTest(HomeCase):
         self.assertTrue(live.is_file())
         settings = self.settings()
         self.assertIs(settings["enableSkillCommands"], True)
-        self.assertNotIn("defaultProvider", settings, "no provider is picked without the user choosing one")
+        self.assertEqual(settings.get("defaultProvider"), BASE_PROVIDER, "no provider is picked without the user choosing one")
         self.assertFalse((self.agent_dir() / "auth.json").exists(), "the installer never writes credentials")
         self.assertFalse((self.agent_dir() / "models.json").exists())
         text = live.read_text().lower()
@@ -118,7 +120,7 @@ class PiBootstrapTest(HomeCase):
         done = self.install(**self.pi_only_env())
         self.assertIn("Pi is not installed", done.stdout + done.stderr)
         self.assertIn("https://pi.dev/install.sh", done.stdout + done.stderr)
-        self.assertNotIn("defaultProvider", self.settings(), "a missing Pi never falls back to another provider")
+        self.assertEqual(self.settings().get("defaultProvider"), BASE_PROVIDER, "a missing Pi never falls back to another provider")
 
     # S3: the skills Pi finds are the ones already linked, and a missing one is reported.
     def test_pi_reports_the_linked_skills_and_the_missing_prerequisites(self):

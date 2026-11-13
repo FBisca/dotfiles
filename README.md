@@ -99,7 +99,8 @@ Skills and the workflow they implement come from [`agent-skills`](https://github
 - Skills are not copied or forked. Pi discovers the symlinks in `~/.agents/skills` that the installer already links, and the installer reports the skills it found and the ones that are missing (a missing skill is reported, never invented).
 - The tracked base declares the `pi-rtk-optimizer` package, which Pi installs at its next start. It rewrites every bash command through [rtk](https://github.com/rtk-ai/rtk), which prints the compact form of git, build and test output instead of the raw one. The `rtk` binary is a prerequisite (`brew install rtk`); the installer detects it and reports it, and never installs it. Without the binary every command still runs, unchanged.
 - No credentials are written. Authorise a provider inside Pi with `/login`, or export `MINIMAX_API_KEY` and let Pi read it from the environment; `auth.json` is never touched.
-- Pi has no permission prompts, so the `agent-runtime` MCP server is removed from `~/.pi/agent/mcp.json` (other servers stay and the previous file is backed up) until a safety adapter is approved.
+- The `agent-runtime` MCP server is registered in `~/.pi/agent/mcp.json`, the file Pi reads at startup: the runtime's own server path, `AGENT_RUNTIME_DISPATCH=1`, `exposure: direct`, a 600 s timeout. Every other server in that file stays, the previous file is backed up before it changes, and a rerun changes nothing.
+- Pi has no permission prompts, so the tool list is not what authorizes a Pi lead. The server refuses what the host policy in `~/.config/agent-runtime/hosts.json` does not allow; the installer reports that policy and never writes it. The runtime writes the same entry itself before it starts a Pi worker, so the path always names the running runtime.
 
 `./install.sh --pi-only` links the skills and sets Pi up without touching Claude Code or Codex.
 
@@ -112,7 +113,7 @@ These need the real machine and an authorised provider, so they are not covered 
 - [ ] `/login` (or `MINIMAX_API_KEY`) authorises MiniMax and `/model` selects `MiniMax-M3.1-Flash` with low reasoning.
 - [ ] `/skill:start-planning` loads the skill from `~/.agents/skills/start-planning`.
 - [ ] A bounded code edit in a disposable worktree finishes without the model repeating the same tool call.
-- [ ] No agent-runtime tool is exposed in Pi.
+- [ ] `pi mcp list` shows the `agent-runtime` server with its tools.
 - [ ] `rtk --version` reports the binary Pi rewrites commands through, and `pi -p "run git status"` prints rtk's compact output.
 
 The last two are automated behind a flag, so a new machine can repeat them instead of guessing: `PI_LIVE=1 python3 -B -m unittest discover -s tests -p test_pi_acceptance.py`.

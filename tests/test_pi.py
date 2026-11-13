@@ -1,4 +1,4 @@
-"""Pi bootstrap: additive settings, skill discovery, secret safety, no runtime MCP in Pi (S2-S6)."""
+"""Pi bootstrap: additive settings, skill discovery, secret safety, the runtime MCP server in Pi (S2-S6)."""
 
 import json
 import re
@@ -145,28 +145,76 @@ class PiBootstrapTest(HomeCase):
         self.assertEqual(note.read_text(), "mine")
         self.assertTrue((self.home / ".agents/skills/alpha").is_symlink())
 
-    # S5: Pi must not get the mutating agent-runtime tools.
-    def test_the_agent_runtime_mcp_server_is_removed_from_pi_and_backed_up(self):
-        """S5 the mutating agent-runtime tools are not exposed in Pi."""
+    # S5: Pi gets the agent-runtime MCP server; the host policy is what authorises its tools.
+    def test_the_agent_runtime_mcp_server_is_registered_for_pi(self):
+        """S5 the agent-runtime MCP server is registered in Pi's user-level configuration."""
+        self.install()
+        servers = json.loads((self.agent_dir() / "mcp.json").read_text())["mcpServers"]
+        self.assertIn("agent-runtime", servers, "Pi finds the agent-runtime server")
+        entry = servers["agent-runtime"]
+        self.assertEqual(entry["command"], "python3")
+        self.assertEqual(entry["args"], [str(self.runtime / "server" / "mcp_server.py")])
+        self.assertEqual(entry["env"], {"AGENT_RUNTIME_DISPATCH": "1"})
+        self.assertEqual(entry["exposure"], "direct")
+        self.assertEqual(entry["timeout"], 600)
+
+    def test_the_user_own_pi_mcp_servers_survive_the_registration(self):
+        """S5 the user's own MCP servers stay, and the previous file is backed up."""
         (self.agent_dir()).mkdir(parents=True)
         mcp = self.agent_dir() / "mcp.json"
         mcp.write_text(json.dumps({"mcpServers": {
-            "agent-runtime": {"command": "sh", "args": ["-c", "agent-runtime-mcp"]},
-            "filesystem": {"command": "npx", "args": ["-y", "@modelmodelcontextprotocol/server-filesystem", "."]},
+            "filesystem": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]},
         }}))
-        done = self.install()
-        servers = json.loads(mcp.read_text())["mcpServers"]
-        self.assertNotIn("agent-runtime", servers)
-        self.assertIn("filesystem", servers, "other MCP servers stay")
-        backups = list(self.agent_dir().glob("mcp.json.bak-*"))
-        self.assertEqual(len(backups), 1)
-        self.assertIn("agent-runtime", json.loads(backups[0].read_text())["mcpServers"])
-        self.assertIn("does not expose the agent-runtime MCP tools", done.stdout + done.stderr)
-
-    def test_no_mcp_file_is_created_when_the_user_has_none(self):
-        """S5 no MCP configuration is invented for Pi."""
         self.install()
+        servers = json.loads(mcp.read_text())["mcpServers"]
+        self.assertIn("filesystem", servers, "other MCP servers stay")
+        self.assertIn("agent-runtime", servers)
+        backups = list(self.agent_dir().glob("mcp.json.bak-*"))
+        self.assertEqual(len(backups), 1, "the previous file is backed up")
+        self.assertIn("filesystem", json.loads(backups[0].read_text())["mcpServers"])
+
+    def test_rerunning_the_installer_leaves_the_pi_mcp_file_untouched(self):
+        """S5 the registration is idempotent: a rerun changes nothing and writes no backup."""
+        self.install()
+        mcp = self.agent_dir() / "mcp.json"
+        first = mcp.read_bytes()
+        self.install()
+        self.assertEqual(mcp.read_bytes(), first)
+        self.assertEqual(list(self.agent_dir().glob("mcp.json.bak-*")), [])
+
+    def test_a_broken_pi_mcp_file_is_backed_up_and_left_untouched(self):
+        """S5 a broken live file is backed up, not replaced."""
+        (self.agent_dir()).mkdir(parents=True)
+        mcp = self.agent_dir() / "mcp.json"
+        mcp.write_text("{not json")
+        done = self.install()
+        self.assertEqual(mcp.read_text(), "{not json")
+        self.assertEqual(len(list(self.agent_dir().glob("mcp.json.bak-*"))), 1)
+        self.assertIn("is not valid JSON", done.stdout + done.stderr)
+
+    def test_without_a_runtime_no_pi_mcp_entry_is_invented(self):
+        """S5 a missing runtime is a reported prerequisite, never an invented entry."""
+        done = self.install("--pi-only", AGENT_RUNTIME_DIR=str(self.tmp / "no-runtime"))
+        output = done.stdout + done.stderr
+        self.assertIn("agent-runtime MCP server", output)
         self.assertFalse((self.agent_dir() / "mcp.json").exists())
+
+    def test_the_pi_host_policy_is_reported_and_never_invented(self):
+        """S5 the policy that authorises a Pi lead is reported, never written by the installer."""
+        done = self.install()
+        output = done.stdout + done.stderr
+        self.assertIn("hosts.json", output)
+        self.assertFalse((self.home / ".config" / "agent-runtime" / "hosts.json").exists(),
+                         "the installer never invents the authorization")
+
+    def test_an_existing_pi_host_policy_is_reported_as_ready(self):
+        """S5 a policy that is already there is left alone and reported as ready."""
+        policy = self.home / ".config" / "agent-runtime" / "hosts.json"
+        policy.parent.mkdir(parents=True)
+        policy.write_text(json.dumps({"hosts": {"pi": {"mutations": True}}}))
+        done = self.install()
+        self.assertIn("Pi host policy ready", done.stdout + done.stderr)
+        self.assertEqual(json.loads(policy.read_text())["hosts"]["pi"]["mutations"], True)
 
     # S2: Claude Code and Codex are untouched by the Pi path.
     def test_claude_and_codex_files_are_byte_for_byte_the_same_after_a_rerun(self):

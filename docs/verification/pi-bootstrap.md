@@ -21,6 +21,25 @@ The live smoke is automated behind a flag, so the next machine can repeat it:
 PI_LIVE=1 python3 -B -m unittest discover -s tests -p test_pi_acceptance.py
 ```
 
+## Run of 2026-11-13
+
+Machine: macOS, Pi 1.5.2 at `~/.pi/agent/bin/pi`, repository `~/developer/dotfiles`.
+
+The `agent-runtime` MCP server is now registered for Pi. The dotfiles installer used to remove the
+entry from `~/.pi/agent/mcp.json` on every run (the pi-bootstrap/S5 guard, written when the runtime
+could not authorize a Pi session), while the runtime wrote the same entry itself before every Pi
+worker start. The two writers alternated, and a Pi session that started in between found no servers:
+`pi mcp list` said "No MCP servers configured".
+
+| Check | Command | Result |
+|---|---|---|
+| The server is registered | `./install.sh --pi-only` | `Pi's agent-runtime MCP server is already registered in ~/.pi/agent/mcp.json` (the entry names the runtime's own server, `AGENT_RUNTIME_DISPATCH=1`, `exposure: direct`, a 600 s timeout) |
+| Pi finds it | `pi mcp list` | `agent-runtime: connected, 10 tools (direct, global)` |
+| The policy that authorizes a Pi lead | the installer reports it | `Pi host policy ready: ~/.config/agent-runtime/hosts.json` |
+
+The host policy is the operator's file: the server refuses what it does not allow, and the installer
+reports it without writing it.
+
 ## What is still open
 
 - `pi auth check` proves that the credential resolves, and the smoke proves that the API call is authorised and billed by the provider. Whether the MiniMax plan's subscription covers this API usage, rather than a separate balance, cannot be observed from the client side.

@@ -379,38 +379,85 @@ report_pi_rtk() {
   return 0
 }
 
-# Pi has no permission prompts, so the mutating agent-runtime tools are not exposed
-# there yet: the server entry is removed (other servers stay) and the file is backed up.
-guard_pi_mcp() { # agent_dir
+# Pi reaches the agent-runtime server through its own user-level mcp.json, the file Pi
+# reads when it starts. The server authorizes what a Pi lead may do (the pi host in
+# ~/.config/agent-runtime/hosts.json), so registering it here grants nothing: the policy
+# stays with the runtime. The runtime owns the path in the entry and rewrites it to its
+# own checkout before it starts a Pi worker, so the two writers agree on the shape.
+install_pi_mcp() { # agent_dir
   local agent_dir="$1"
   local mcp="$agent_dir/mcp.json"
-  [[ -f "$mcp" ]] || return 0
-  grep -q 'agent-runtime' "$mcp" || return 0
-  local backup
-  backup="$mcp.bak-$(date +%Y%m%d%H%M%S)"
-  cp "$mcp" "$backup"
-  if python3 - "$mcp" <<'PY'
-import json
-import sys
-
-path = sys.argv[1]
-with open(path, encoding="utf-8") as handle:
-    data = json.load(handle)
-servers = data.get("mcpServers", {})
-removed = [name for name in servers if "agent-runtime" in name]
-if not removed:
-    sys.exit(1)
-for name in removed:
-    del servers[name]
-with open(path, "w", encoding="utf-8") as handle:
-    json.dump(data, handle, indent=2)
-    handle.write("\n")
-PY
-  then
-    ok "Pi does not expose the agent-runtime MCP tools (previous file: $backup)"
+  local server=""
+  if [[ -f "$AGENT_RUNTIME_DIR/server/mcp_server.py" ]]; then
+    server="$AGENT_RUNTIME_DIR/server/mcp_server.py"
+  elif [[ -x "$HOME/.local/bin/agent-runtime-mcp" ]]; then
+    server="$HOME/.local/bin/agent-runtime-mcp"
   else
-    cp "$backup" "$mcp"
-    warn "could not disable the agent-runtime MCP server in $mcp; it was left as it was"
+    warn "Pi has no agent-runtime MCP server: no runtime at $AGENT_RUNTIME_DIR and no agent-runtime-mcp shim in $HOME/.local/bin"
+    return 0
+  fi
+  mkdir -p "$agent_dir" || { warn "could not create $agent_dir; the MCP server was not registered"; return 0; }
+  if [[ -f "$mcp" ]] && ! python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$mcp" 2>/dev/null; then
+    cp -L "$mcp" "$mcp.bak-$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+    warn "$mcp is not valid JSON; left untouched (previous copy saved as $mcp.bak-*)"
+    return 0
+  fi
+  local action
+  if ! action=$(python3 - "$mcp" "$server" "$mcp.bak-$(date +%Y%m%d%H%M%S)" <<'PY'
+import json
+import os
+import shutil
+import sys
+import tempfile
+
+path, server, backup = sys.argv[1], sys.argv[2], sys.argv[3]
+# The runtime's own entry: its own server path, the durable dispatch store, direct exposure.
+entry = {"command": "python3", "args": [server]} if server.endswith(".py") else {"command": server, "args": []}
+entry["env"] = {"AGENT_RUNTIME_DISPATCH": "1"}
+entry["exposure"] = "direct"
+entry["timeout"] = 600
+
+data = {}
+if os.path.exists(path):
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+servers = data.get("mcpServers")
+if not isinstance(servers, dict):
+    servers = {}
+current = servers.get("agent-runtime")
+if current == entry:
+    print("unchanged")
+    raise SystemExit(0)
+servers["agent-runtime"] = entry
+data["mcpServers"] = servers
+if os.path.exists(path):
+    shutil.copyfile(path, backup)
+handle, temporary = tempfile.mkstemp(prefix=".mcp-", dir=os.path.dirname(path))
+with os.fdopen(handle, "w", encoding="utf-8") as stream:
+    stream.write(json.dumps(data, indent=2) + "\n")
+os.replace(temporary, path)
+print("added" if current is None else "updated")
+PY
+  ); then
+    action="failed"
+  fi
+  case "$action" in
+    unchanged) ok "Pi's agent-runtime MCP server is already registered in $mcp" ;;
+    added) ok "Pi's agent-runtime MCP server is registered in $mcp" ;;
+    updated) ok "Pi's agent-runtime MCP server in $mcp now names this runtime" ;;
+    *) warn "could not register the agent-runtime MCP server in $mcp; it was left as it was" ;;
+  esac
+}
+
+# A Pi lead's mutating tools are authorized by the host policy, not by the tool list: Pi
+# ships no permission prompt and no hook, so the server refuses what the policy does not
+# allow. The policy is the operator's file; the installer reports it and never writes it.
+report_pi_host_policy() {
+  local hosts="$HOME/.config/agent-runtime/hosts.json"
+  if [[ -f "$hosts" ]] && python3 -c 'import json,sys; raise SystemExit(0 if "pi" in json.load(open(sys.argv[1])).get("hosts", {}) else 1)' "$hosts" 2>/dev/null; then
+    ok "Pi host policy ready: $hosts"
+  else
+    warn "Pi has no host policy: a Pi lead's mutating tools are refused until $hosts names a pi host"
   fi
 }
 
@@ -443,7 +490,6 @@ setup_pi() {
   setup_pi_settings "$agent_dir"
   report_pi_skills
   report_pi_rtk
-  guard_pi_mcp "$agent_dir"
   info "authorise a provider inside Pi with /login (or export MINIMAX_API_KEY); this installer never writes credentials"
 }
 
@@ -471,10 +517,14 @@ clone_if_missing "$AGENT_SKILLS_DIR" "$AGENT_SKILLS_REPO"
 setup_skills
 setup_pi
 if [[ "$DO_PI_ONLY" -eq 1 ]]; then
+  install_pi_mcp "$PI_AGENT_DIR"
+  report_pi_host_policy
   ok "done (Pi only: skills linked and Pi set up; Claude Code and Codex were left alone)"
   exit 0
 fi
 setup_runtime
+install_pi_mcp "$PI_AGENT_DIR"
+report_pi_host_policy
 setup_rastro
 setup_config
 if [[ "$DO_STOW" -eq 1 ]]; then stow_modules; fi
@@ -490,4 +540,5 @@ Next steps:
   3. Optional tools: oh-my-zsh, mise, gh (gh auth login), Nerd Fonts, jq, ripgrep, fzf.
   4. Upstream skills: ./install.sh --upstream
   5. Pi: start it with 'pi', then /login to authorise a provider (the installer never writes credentials).
+  6. Pi: 'pi mcp list' shows the agent-runtime server; a Pi lead needs the pi host in ~/.config/agent-runtime/hosts.json.
 EOF

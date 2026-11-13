@@ -45,6 +45,10 @@ def make_runtime_stub(path):
         '#!/bin/sh\nmkdir -p "$BIN_DIR"\nfor n in agent-runtime agent-runtime-hook agent-runtime-mcp; do\n'
         '  printf "#!/bin/sh\\n" > "$BIN_DIR/$n"; chmod +x "$BIN_DIR/$n"\ndone\n')
     (path / "install.sh").chmod(0o755)
+    # The MCP server the Pi entry names: a checkout install points at this file.
+    server = path / "server" / "mcp_server.py"
+    server.parent.mkdir(parents=True, exist_ok=True)
+    server.write_text('"""The stub MCP server."""\n')
     return path
 
 

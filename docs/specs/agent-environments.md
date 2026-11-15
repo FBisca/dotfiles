@@ -10,6 +10,8 @@ Pi reaches the `agent-runtime` server through its own user-level `mcp.json`: the
 
 Pi's RTK optimizer is declared in the tracked base settings as the package `npm:pi-rtk-optimizer@0.9.0`, so Pi installs it at its next start and rewrites every bash command through the `rtk` binary, which prints the compact form of git, build and test output. The binary is a prerequisite this repo never installs: the installer detects it and reports the `brew install rtk` line when it is missing, and every command still runs unchanged without it.
 
+Pi's web search is the `npm:pi-web-search-lite` package, declared in the same tracked base. It reads one JSON file of its own, `<pi agent dir>/pi-web-search-lite/config.json`: the tracked base `agents/.pi/pi-web-search-lite.config.json` holds the defaults and the installer merges it under the user's file, so the user's own values win and a rerun changes nothing. The search key is never written: the extension reads `EXA_API_KEY` from the environment, and the installer reports that prerequisite without failing when it is missing. The extension's tools are declared `deferred` and Pi's own `tool_search` is enabled, so they cost nothing until the model needs them.
+
 ## Requirements
 
 - **R1** WHEN the published Pi checklist runs on a machine with an authorised MiniMax provider, THEN a bounded edit in a disposable worktree completes without the model repeating the same tool call, and the outcome is recorded in `docs/verification/pi-bootstrap.md`. (from pi-bootstrap/S1)
@@ -25,3 +27,8 @@ Pi's RTK optimizer is declared in the tracked base settings as the package `npm:
 - **R11** WHEN the machine has no agent-runtime server to point at, THEN the installer reports that prerequisite and writes no MCP entry. (from pi-agent-runtime-mcp/S3)
 - **R12** WHEN the installer sets Pi up, THEN it reports the Pi host policy that authorizes a Pi lead, and never writes it. (from pi-agent-runtime-mcp/S4)
 - **R13** WHEN the live Pi MCP file is not valid JSON, THEN it is backed up and left untouched. (from pi-agent-runtime-mcp/S5)
+- **R14** WHEN the installer sets Pi up, THEN the tracked Pi base declares the `npm:pi-web-search-lite` package and enables `tool_search` through `defaultTools`, and Pi installs the package at its next start. (from pi-web-search/S1)
+- **R15** WHEN the installer sets Pi up, THEN `~/.pi/agent/pi-web-search-lite/config.json` carries the tracked defaults - the exa provider, `deferred` activation, 3 results, 4000 inline characters, 100 inline lines and spilling to a file - the user's own values in that file win over the tracked ones, and a rerun changes nothing. (from pi-web-search/S2)
+- **R16** WHEN the live web-search configuration is not valid JSON, THEN it is backed up and left untouched. (from pi-web-search/S3)
+- **R17** WHEN the Pi configuration is installed, THEN no search credential appears in a tracked file, the key is read from the environment, and a missing `EXA_API_KEY` is reported without failing the install. (from pi-web-search/S4)
+- **R18** WHEN Pi starts with the tracked base settings, THEN it installs the declared package and the extension's `web_search` and `web_fetch` tools are discoverable through `tool_search`. (from pi-web-search/S5)

@@ -306,6 +306,7 @@ setup_config() {
 PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 PI_SKILL_DIR="$HOME/.agents/skills"
 PI_BASE_SETTINGS="$ROOT/agents/.pi/settings.base.json"
+PI_WEB_SEARCH_CONFIG="$ROOT/agents/.pi/pi-web-search-lite.config.json"
 PI_REQUIRED_SKILLS=(start-planning grilling)
 
 # Pi's settings.json is the user's own file: base and private overlay are merged under
@@ -337,6 +338,53 @@ setup_pi_settings() { # agent_dir
   fi
   mv -f "$new" "$live" # replaces a symlink to an old file without touching its target
   ok "Pi settings ready at $live"
+}
+
+# Pi's web search extension (npm:pi-web-search-lite) reads one JSON file of its own:
+# <pi agent dir>/pi-web-search-lite/config.json. The tracked base holds the defaults and is
+# merged under the user's file, the same way Pi's own settings are: what the user chose wins
+# and a rerun takes nothing back. The search key is never written here, the extension reads
+# it from the environment.
+setup_pi_web_search() { # agent_dir
+  local agent_dir="$1"
+  local dir="$agent_dir/pi-web-search-lite"
+  local live="$dir/config.json"
+  local new="$live.new.$$"
+  local args=(json "$new" "$PI_WEB_SEARCH_CONFIG")
+  if [[ ! -f "$PI_WEB_SEARCH_CONFIG" ]]; then
+    warn "no tracked web search config at $PI_WEB_SEARCH_CONFIG; nothing was written"
+    return 0
+  fi
+  mkdir -p "$dir" || { warn "could not create $dir; the web search config was not written"; return 0; }
+  if [[ -e "$live" ]]; then
+    if ! python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$live" 2>/dev/null; then
+      cp -L "$live" "$live.bak-$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+      warn "$live is not valid JSON; left untouched (previous copy saved as $live.bak-*)"
+      return 0
+    fi
+    args+=("$live")
+  fi
+  if ! python3 "$ROOT/scripts/merge-config.py" "${args[@]}"; then
+    rm -f "$new"
+    warn "could not generate $live; it was left untouched"
+    return 0
+  fi
+  if [[ -f "$live" ]] && ! cmp -s "$live" "$new"; then
+    cp -L "$live" "$live.bak-$(date +%Y%m%d%H%M%S)"
+    warn "$live changed; the previous copy was saved as $live.bak-*"
+  fi
+  mv -f "$new" "$live"
+  ok "Pi web search config ready at $live"
+}
+
+# The search key is a prerequisite the user holds: the extension reads EXA_API_KEY from the
+# environment. The installer reports whether it is there and never prints or writes it.
+report_pi_web_search_key() {
+  if [[ -n "${EXA_API_KEY:-}" ]]; then
+    ok "Pi web search key: EXA_API_KEY is set in the environment"
+  else
+    warn "EXA_API_KEY is not in the environment; Pi's web search needs it (it lives in your zsh secrets, exported)"
+  fi
 }
 
 # What Pi will find when it starts, and what it will not: a missing skill is reported
@@ -488,8 +536,10 @@ setup_pi() {
   fi
   mkdir -p "$agent_dir" || { warn "could not create $agent_dir; Pi setup skipped"; return 0; }
   setup_pi_settings "$agent_dir"
+  setup_pi_web_search "$agent_dir"
   report_pi_skills
   report_pi_rtk
+  report_pi_web_search_key
   info "authorise a provider inside Pi with /login (or export MINIMAX_API_KEY); this installer never writes credentials"
 }
 

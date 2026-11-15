@@ -98,6 +98,8 @@ Skills and the workflow they implement come from [`agent-skills`](https://github
 - The live `~/.pi/agent/settings.json` belongs to the user: base and overlay are merged *under* it, so whatever Pi or the user wrote there survives. A file that is not valid JSON is backed up as `settings.json.bak-<timestamp>` and left untouched.
 - Skills are not copied or forked. Pi discovers the symlinks in `~/.agents/skills` that the installer already links, and the installer reports the skills it found and the ones that are missing (a missing skill is reported, never invented).
 - The tracked base declares the `pi-rtk-optimizer` package, which Pi installs at its next start. It rewrites every bash command through [rtk](https://github.com/rtk-ai/rtk), which prints the compact form of git, build and test output instead of the raw one. The `rtk` binary is a prerequisite (`brew install rtk`); the installer detects it and reports it, and never installs it. Without the binary every command still runs, unchanged.
+- The tracked base declares the `pi-web-search-lite` package too, and Pi's on-demand tool discovery (`"defaultTools": ["+tool_search"]`) is on, so the extension's `web_search` and `web_fetch` cost no context until the model needs them. The extension reads one file of its own, `~/.pi/agent/pi-web-search-lite/config.json`: `agents/.pi/pi-web-search-lite.config.json` holds the tracked defaults (exa, deferred, 3 results) and the installer merges them under the user's file, so the user's own values win and a rerun changes nothing.
+- The search key is never written. The extension reads `EXA_API_KEY` from the environment, so it has to be exported (it lives in the zsh secrets); the installer reports the prerequisite and never prints the key.
 - No credentials are written. Authorise a provider inside Pi with `/login`, or export `MINIMAX_API_KEY` and let Pi read it from the environment; `auth.json` is never touched.
 - The `agent-runtime` MCP server is registered in `~/.pi/agent/mcp.json`, the file Pi reads at startup: the runtime's own server path, `AGENT_RUNTIME_DISPATCH=1`, `exposure: direct`, a 600 s timeout. Every other server in that file stays, the previous file is backed up before it changes, and a rerun changes nothing.
 - Pi has no permission prompts, so the tool list is not what authorizes a Pi lead. The server refuses what the host policy in `~/.config/agent-runtime/hosts.json` does not allow; the installer reports that policy and never writes it. The runtime writes the same entry itself before it starts a Pi worker, so the path always names the running runtime.
@@ -106,7 +108,7 @@ Skills and the workflow they implement come from [`agent-skills`](https://github
 
 ### Manual checks
 
-These need the real machine and an authorised provider, so they are not covered by the automated tests. The requirements they cover live in [`docs/specs/agent-environments.md`](docs/specs/agent-environments.md); what the last run found is recorded in [`docs/verification/pi-bootstrap.md`](docs/verification/pi-bootstrap.md) and [`docs/verification/pi-rtk.md`](docs/verification/pi-rtk.md).
+These need the real machine and an authorised provider, so they are not covered by the automated tests. The requirements they cover live in [`docs/specs/agent-environments.md`](docs/specs/agent-environments.md); what the last run found is recorded in [`docs/verification/pi-bootstrap.md`](docs/verification/pi-bootstrap.md), [`docs/verification/pi-rtk.md`](docs/verification/pi-rtk.md) and [`docs/verification/pi-web-search.md`](docs/verification/pi-web-search.md).
 
 - [ ] `pi --version` reports the installed Pi.
 - [ ] `pi auth check --provider minimax --model MiniMax-M3.1-Flash` reports the credential as resolved.
@@ -115,6 +117,7 @@ These need the real machine and an authorised provider, so they are not covered 
 - [ ] A bounded code edit in a disposable worktree finishes without the model repeating the same tool call.
 - [ ] `pi mcp list` shows the `agent-runtime` server with its tools.
 - [ ] `rtk --version` reports the binary Pi rewrites commands through, and `pi -p "run git status"` prints rtk's compact output.
+- [ ] `pi list` shows `npm:pi-web-search-lite`, and a search returns Exa results.
 
 The last two are automated behind a flag, so a new machine can repeat them instead of guessing: `PI_LIVE=1 python3 -B -m unittest discover -s tests -p test_pi_acceptance.py`.
 

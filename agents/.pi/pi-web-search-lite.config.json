@@ -1,0 +1,13 @@
+{
+  "provider": "exa",
+  "activation": "deferred",
+  "search": {
+    "defaultMaxResults": 3,
+    "maxResultsLimit": 5
+  },
+  "context": {
+    "maxInlineChars": 4000,
+    "maxInlineLines": 100,
+    "spillToFile": true
+  }
+}

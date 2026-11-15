@@ -1,8 +1,9 @@
 {
   "$schema": "https://pi.dev/schemas/settings.schema.json",
   "enableSkillCommands": true,
-  "packages": ["npm:pi-rtk-optimizer@0.9.0"],
+  "packages": ["npm:pi-rtk-optimizer@0.9.0", "npm:pi-web-search-lite"],
   "defaultProvider": "minimax",
   "defaultModel": "MiniMax-M3.1-Flash",
-  "modelThinkingLevels": { "minimax/MiniMax-M3.1-Flash": "max" }
+  "modelThinkingLevels": { "minimax/MiniMax-M3.1-Flash": "max" },
+  "defaultTools": ["+tool_search"]
 }

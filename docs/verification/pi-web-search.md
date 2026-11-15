@@ -10,7 +10,7 @@ Machine: macOS, Pi 1.5.2 at `~/.pi/agent/bin/pi`, `pi-web-search-lite` 0.13.1, r
 |---|---|---|
 | The package is installed for Pi | `pi list` | `npm:pi-web-search-lite` at `~/.pi/agent/npm/node_modules/pi-web-search-lite` |
 | The package is declared in the tracked base | `agents/.pi/settings.base.json` | `"packages": [..., "npm:pi-web-search-lite"]` and `"defaultTools": ["+tool_search"]` |
-| The installer writes the extension's own config | `./install.sh --pi-only` | `Pi web search config ready at /Users/fbisca/.pi/agent/pi-web-search-lite/config.json` |
+| The installer writes the extension's own config | `./install.sh --pi-only` | `Pi web search config ready at ~/.pi/agent/pi-web-search-lite/config.json` |
 | The key is a reported prerequisite | `./install.sh --pi-only` | `Pi web search key: EXA_API_KEY is set in the environment` (the value is never printed) |
 | The tools are found on demand | `pi -p "use web_search to find the current stable version of the python programming language"` | the model called `web_search` and `web_fetch` without them being in the starting tool list: `tool_search` declared them |
 | The search reaches Exa | same run | `web_search: 5 results (provider: exa, max_results: 5)`, with python.org among the results |

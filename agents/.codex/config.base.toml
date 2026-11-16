@@ -93,6 +93,10 @@ output_token_limit = 524288
 output_token_limit = 524288
 approval_mode = "approve"
 
+[tui]
+status_line = ["model", "reasoning", "context-used", "context-remaining", "five-hour-limit", "weekly-limit", "current-dir", "thread-name"]
+status_line_use_colors = true
+
 [features]
 hooks = true
 js_repl = false

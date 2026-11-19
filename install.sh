@@ -309,6 +309,9 @@ PI_BASE_SETTINGS="$ROOT/agents/.pi/settings.base.json"
 PI_AGENTS_MD="$ROOT/agents/.pi/AGENTS.md"
 PI_WEB_SEARCH_CONFIG="$ROOT/agents/.pi/pi-web-search-lite.config.json"
 PI_STARLINE_CONFIG="$ROOT/agents/.pi/starline.base.json"
+PI_RTK_CONFIG="$ROOT/agents/.pi/rtk-optimizer.base.json"
+PI_OLLAMA_CLOUD_CONFIG="$ROOT/agents/.pi/ollama-cloud.base.json"
+PI_PERMISSION_CONFIG="$ROOT/agents/.pi/permission-system.base.json"
 PI_REQUIRED_SKILLS=(start-planning grilling)
 
 # Pi's settings.json is the user's own file: base and private overlay are merged under
@@ -433,6 +436,42 @@ setup_pi_starline() { # agent_dir
   fi
   mv -f "$new" "$live"
   ok "Pi starline config ready at $live"
+}
+
+# The RTK optimizer, Ollama Cloud and permission-system extensions each read one JSON file
+# of their own: <pi agent dir>/extensions/pi-rtk-optimizer/config.json,
+# <pi agent dir>/ollama-cloud.json and <pi agent dir>/extensions/pi-permission-system/config.json.
+# Tracked bases hold the defaults, merged under the user's live file the same way Pi's own
+# settings are: what the user chose wins, a rerun takes nothing back, and a file that is not
+# valid JSON is backed up and left alone. Neither base holds a credential: the Ollama key
+# stays in Pi's auth.json or the environment, and rtk has none.
+setup_pi_extension_json() { # base live
+  local base="$1" live="$2" new="$2.new.$$"
+  if [[ ! -f "$base" ]]; then
+    warn "no tracked base at $base; $live left untouched"
+    return 0
+  fi
+  mkdir -p "$(dirname "$live")" || { warn "could not create $(dirname "$live"); $live left untouched"; return 0; }
+  local args=(json "$new" "$base")
+  if [[ -e "$live" ]]; then
+    if ! python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$live" 2>/dev/null; then
+      cp -L "$live" "$live.bak-$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+      warn "$live is not valid JSON; left untouched (previous copy saved as $live.bak-*)"
+      return 0
+    fi
+    args+=("$live")
+  fi
+  if ! python3 "$ROOT/scripts/merge-config.py" "${args[@]}"; then
+    rm -f "$new"
+    warn "could not generate $live; it was left untouched"
+    return 0
+  fi
+  if [[ -f "$live" ]] && ! cmp -s "$live" "$new"; then
+    cp -L "$live" "$live.bak-$(date +%Y%m%d%H%M%S)"
+    warn "$live changed; the previous copy was saved as $live.bak-*"
+  fi
+  mv -f "$new" "$live"
+  ok "Pi config ready at $live"
 }
 
 # The search key is a prerequisite the user holds: the extension reads EXA_API_KEY from the
@@ -597,10 +636,13 @@ setup_pi() {
   setup_pi_instructions "$agent_dir"
   setup_pi_web_search "$agent_dir"
   setup_pi_starline "$agent_dir"
+  setup_pi_extension_json "$PI_RTK_CONFIG" "$agent_dir/extensions/pi-rtk-optimizer/config.json"
+  setup_pi_extension_json "$PI_OLLAMA_CLOUD_CONFIG" "$agent_dir/ollama-cloud.json"
+  setup_pi_extension_json "$PI_PERMISSION_CONFIG" "$agent_dir/extensions/pi-permission-system/config.json"
   report_pi_skills
   report_pi_rtk
   report_pi_web_search_key
-  info "authorise a provider inside Pi with /login (or export MINIMAX_API_KEY); this installer never writes credentials"
+  info "authorise a provider inside Pi with /login (or export its API key); this installer never writes credentials"
 }
 
 # --- stow -----------------------------------------------------------------------

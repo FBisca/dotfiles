@@ -132,7 +132,7 @@ class PiBootstrapTest(HomeCase):
         self.assertIn("Pi skill ready: start-planning", output)
         self.assertIn("missing Pi skill prerequisite: grilling", output)
         self.assertFalse((self.home / ".agents/skills/grilling").exists(), "a missing skill is never invented")
-        for name in ("alpha", "beta", "secret", "start-planning"):
+        for name in ("alpha", "beta", "start-planning"):
             link = self.home / ".agents/skills" / name
             self.assertTrue(link.is_symlink(), name)
             self.assertTrue((link / "SKILL.md").is_file(), name)

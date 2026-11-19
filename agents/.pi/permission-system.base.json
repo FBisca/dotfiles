@@ -72,6 +72,7 @@
       "~/perf-reviews/*": "allow",
       "~/.agents": "allow",
       "~/.agents/*": "allow",
+      "~/.agent-orchestrator/*": "allow",
       "/tmp/*": "allow",
       "/private/tmp/*": "allow",
       "/var/folders/*": "allow"

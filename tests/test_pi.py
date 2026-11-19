@@ -266,6 +266,58 @@ class PiBootstrapTest(HomeCase):
         self.assertIn("brew install rtk", output)
         self.assertTrue((self.agent_dir() / "settings.json").is_file())
 
+    # S8: Pi reads instructions only from its agent dir, so the installer generates them.
+    def test_new_home_gets_global_rules_plus_the_pi_section(self):
+        """S8 the live AGENTS.md combines the shared rules and the Pi-only section."""
+        self.install()
+        live = self.agent_dir() / "AGENTS.md"
+        text = live.read_text()
+        shared = (ROOT / "agents/.agents/AGENTS.md").read_text()
+        pi_only = (ROOT / "agents/.pi/AGENTS.md").read_text()
+        self.assertIn(shared.splitlines()[0], text, "the global rules reach Pi")
+        self.assertIn(pi_only, text, "the Pi-only section is appended")
+        self.assertNotIn("@RTK.md", text, "Pi does not expand Claude-style imports; the dangling line is dropped")
+        self.assertFalse(live.is_symlink())
+
+    def test_rerunning_the_installer_leaves_pi_instructions_alone(self):
+        """S8 the installer is idempotent for the Pi instructions."""
+        self.install()
+        live = self.agent_dir() / "AGENTS.md"
+        first = live.read_text()
+        self.install()
+        self.assertEqual(live.read_text(), first)
+        self.assertEqual(list(self.agent_dir().glob("AGENTS.md.bak-*")), [])
+
+    def test_a_user_written_pi_instructions_file_is_backed_up(self):
+        """S8 a differing live file is backed up, never silently lost."""
+        self.agent_dir().mkdir(parents=True)
+        live = self.agent_dir() / "AGENTS.md"
+        live.write_text("my own rules\n")
+        self.install()
+        backups = list(self.agent_dir().glob("AGENTS.md.bak-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(), "my own rules\n")
+        self.assertIn("Codemode", live.read_text())
+
+    def test_a_symlinked_pi_instructions_file_is_replaced_without_touching_its_target(self):
+        """S8 a symlinked live file is replaced without touching its target."""
+        target = self.tmp / "pi-agents.md"
+        target.write_text("old instructions\n")
+        self.agent_dir().mkdir(parents=True)
+        live = self.agent_dir() / "AGENTS.md"
+        live.symlink_to(target)
+        self.install()
+        self.assertFalse(live.is_symlink())
+        self.assertEqual(target.read_text(), "old instructions\n")
+
+    def test_the_pi_base_enables_codemode_next_to_the_default_tools(self):
+        """S8 codemode is additive: the default tools stay, mode on keeps direct calls."""
+        self.install()
+        settings = self.settings()
+        self.assertIn("+codemode", settings["defaultTools"])
+        self.assertIn("+tool_search", settings["defaultTools"])
+        self.assertEqual(settings["codemode"]["mode"], "on")
+
     # S4: nothing secret is tracked in this repo.
     def test_tracked_pi_files_hold_no_credentials(self):
         """S4 no tracked file holds a credential or a private endpoint."""
@@ -279,7 +331,8 @@ class PiBootstrapTest(HomeCase):
             except (UnicodeDecodeError, OSError):
                 continue
             self.assertIsNone(re.search(r"sk-[A-Za-z0-9]{16,}", text), path)
-            if path.startswith("agents/.pi/"):
+            # AGENTS.md is prose: "max_output_tokens" is a codemode option, not a credential.
+            if path.startswith("agents/.pi/") and not path.endswith("AGENTS.md"):
                 for secret in ("api_key", "apikey", "bearer", "password", "secret", "token"):
                     self.assertNotIn(secret, text.lower(), f"{path}: {secret}")
 

@@ -5,5 +5,6 @@
   "defaultProvider": "minimax",
   "defaultModel": "MiniMax-M3.1-Flash",
   "modelThinkingLevels": { "minimax/MiniMax-M3.1-Flash": "max" },
-  "defaultTools": ["+tool_search"]
+  "defaultTools": ["+tool_search", "+codemode"],
+  "codemode": { "mode": "on", "inlineBudget": 3000 }
 }

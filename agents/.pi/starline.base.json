@@ -1,0 +1,66 @@
+{
+	"palette": {
+		"bg": "#21252b",
+		"fg": "#abb2bf",
+		"red": "#e06c75",
+		"green": "#98c379",
+		"yellow": "#e5c07b",
+		"blue": "#61afef",
+		"magenta": "#c678dd",
+		"cyan": "#56b6c2",
+		"gray": "#767676",
+		"line": "#3e4451",
+		"panel": "#323844"
+	},
+	"colorSources": {
+		"starship": "terminal",
+		"editor": "terminal"
+	},
+	"colors": {
+		"cwd": "bold bg:$blue fg:$bg",
+		"gitBranch": "bold bg:$green fg:$bg",
+		"model": "bold bg:$red fg:$bg",
+		"thinking": "bold bg:$magenta fg:$bg",
+		"contextNormal": "bold bg:$cyan fg:$bg",
+		"contextWarning": "bold bg:$yellow fg:$bg",
+		"contextError": "bold bg:$red fg:$bg",
+		"cost": "bold bg:$green fg:$bg",
+		"queue": "bold bg:$yellow fg:$bg",
+		"subagents": "bold bg:$cyan fg:$bg",
+		"sessionName": "bold bg:$panel fg:$fg",
+		"extensionStatus": "fg:$gray",
+		"tps": "fg:$gray",
+		"tpsSlow": "fg:$yellow",
+		"tpsFast": "bold fg:$green",
+		"gitCommit": "bold fg:$green",
+		"gitMetricsAdded": "bold fg:$green",
+		"gitPrOpen": "bold fg:$green",
+		"gitPrCount": "bold fg:$magenta",
+		"sessionDuration": "fg:$yellow",
+		"username": "bold fg:$yellow",
+		"time": "bold fg:$yellow",
+		"os": "bold fg:$fg",
+		"editorAccent": "$blue",
+		"editorBorder": "$line"
+	},
+	"pill": {
+		"segments": [
+			"cwd",
+			"git",
+			"runtime",
+			"model",
+			"thinking",
+			"context",
+			"cost",
+			"queue",
+			"subagents",
+			"extensionStatus"
+		],
+		"separator": "powerline",
+		"bold": true,
+		"caps": "round"
+	},
+	"contextStyle": "text",
+	"editorPaddingY": 0,
+	"editorMinRows": 1
+}

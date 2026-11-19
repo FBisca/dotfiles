@@ -308,6 +308,7 @@ PI_SKILL_DIR="$HOME/.agents/skills"
 PI_BASE_SETTINGS="$ROOT/agents/.pi/settings.base.json"
 PI_AGENTS_MD="$ROOT/agents/.pi/AGENTS.md"
 PI_WEB_SEARCH_CONFIG="$ROOT/agents/.pi/pi-web-search-lite.config.json"
+PI_STARLINE_CONFIG="$ROOT/agents/.pi/starline.base.json"
 PI_REQUIRED_SKILLS=(start-planning grilling)
 
 # Pi's settings.json is the user's own file: base and private overlay are merged under
@@ -401,6 +402,37 @@ setup_pi_web_search() { # agent_dir
   fi
   mv -f "$new" "$live"
   ok "Pi web search config ready at $live"
+}
+
+# Starline (npm:pi-starline) reads <pi agent dir>/starline.json. The tracked base holds the
+# Atom One Dark pill palette and layout; merged under the live file so /starline tweaks win.
+setup_pi_starline() { # agent_dir
+  local live="$1/starline.json"
+  local new="$live.new.$$"
+  local args=(json "$new" "$PI_STARLINE_CONFIG")
+  if [[ ! -f "$PI_STARLINE_CONFIG" ]]; then
+    warn "no tracked starline config at $PI_STARLINE_CONFIG; nothing was written"
+    return 0
+  fi
+  if [[ -e "$live" ]]; then
+    if ! python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$live" 2>/dev/null; then
+      cp -L "$live" "$live.bak-$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+      warn "$live is not valid JSON; left untouched (previous copy saved as $live.bak-*)"
+      return 0
+    fi
+    args+=("$live")
+  fi
+  if ! python3 "$ROOT/scripts/merge-config.py" "${args[@]}"; then
+    rm -f "$new"
+    warn "could not generate $live; it was left untouched"
+    return 0
+  fi
+  if [[ -f "$live" ]] && ! cmp -s "$live" "$new"; then
+    cp -L "$live" "$live.bak-$(date +%Y%m%d%H%M%S)"
+    warn "$live changed; the previous copy was saved as $live.bak-*"
+  fi
+  mv -f "$new" "$live"
+  ok "Pi starline config ready at $live"
 }
 
 # The search key is a prerequisite the user holds: the extension reads EXA_API_KEY from the
@@ -564,6 +596,7 @@ setup_pi() {
   setup_pi_settings "$agent_dir"
   setup_pi_instructions "$agent_dir"
   setup_pi_web_search "$agent_dir"
+  setup_pi_starline "$agent_dir"
   report_pi_skills
   report_pi_rtk
   report_pi_web_search_key

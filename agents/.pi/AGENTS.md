@@ -2,7 +2,7 @@
 
 ## Codemode
 
-Codemode runs JavaScript that calls the other tools; only the script's output reaches the model. Use it when it saves context; a direct tool call is cheaper for a single operation.
+Use codemode when it saves context; a direct tool call is cheaper for a single operation.
 
 - Batch independent calls with `Promise.allSettled()`; sequence dependent ones.
 - Filter large outputs inside the script; return only relevant findings, paths, and diagnostics.

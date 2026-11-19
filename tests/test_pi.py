@@ -45,7 +45,8 @@ class PiBootstrapTest(HomeCase):
         self.assertEqual(settings.get("defaultProvider"), BASE_PROVIDER, "no provider is picked without the user choosing one")
         self.assertFalse((self.agent_dir() / "auth.json").exists(), "the installer never writes credentials")
         self.assertFalse((self.agent_dir() / "models.json").exists())
-        text = live.read_text().lower()
+        # "qwen-token-plan" is a provider id, not a credential.
+        text = live.read_text().lower().replace("qwen-token-plan", "")
         for secret in ("api_key", "apikey", "bearer", "password", "secret", "token"):
             self.assertNotIn(secret, text, secret)
 
@@ -333,8 +334,10 @@ class PiBootstrapTest(HomeCase):
             self.assertIsNone(re.search(r"sk-[A-Za-z0-9]{16,}", text), path)
             # AGENTS.md is prose: "max_output_tokens" is a codemode option, not a credential.
             if path.startswith("agents/.pi/") and not path.endswith("AGENTS.md"):
+                # "qwen-token-plan" is a provider id, not a credential.
+                scanned = text.lower().replace("qwen-token-plan", "")
                 for secret in ("api_key", "apikey", "bearer", "password", "secret", "token"):
-                    self.assertNotIn(secret, text.lower(), f"{path}: {secret}")
+                    self.assertNotIn(secret, scanned, f"{path}: {secret}")
 
 
 if __name__ == "__main__":

@@ -9,8 +9,7 @@
 # Environment (all optional):
 #   AGENT_SKILLS_DIR   agent-skills checkout      (default ~/developer/agent-skills, cloned if missing)
 #   AGENT_RUNTIME_DIR  agent-runtime checkout     (default ~/developer/agent-runtime, cloned if missing)
-#   AGENT_FLEET_DIR    private skills checkout    (default ~/developer/agent-fleet, skipped if missing)
-#   DOTFILES_PRIVATE   private config overlay dir (default $AGENT_FLEET_DIR/overlay)
+#   DOTFILES_PRIVATE   private config overlay dir (default ~/.config/dotfiles-private)
 #   AGENT_SKILLS_REPO / AGENT_RUNTIME_REPO   clone URLs
 #
 # Safe to re-run. Never deletes user data: replaced files are backed up, skill state is moved.
@@ -22,8 +21,7 @@ cd "$ROOT"
 
 AGENT_SKILLS_DIR="${AGENT_SKILLS_DIR:-$HOME/developer/agent-skills}"
 AGENT_RUNTIME_DIR="${AGENT_RUNTIME_DIR:-$HOME/developer/agent-runtime}"
-AGENT_FLEET_DIR="${AGENT_FLEET_DIR:-$HOME/developer/agent-fleet}"
-DOTFILES_PRIVATE="${DOTFILES_PRIVATE:-$AGENT_FLEET_DIR/overlay}"
+DOTFILES_PRIVATE="${DOTFILES_PRIVATE:-$HOME/.config/dotfiles-private}"
 AGENT_SKILLS_REPO="${AGENT_SKILLS_REPO:-https://github.com/FBisca/agent-skills.git}"
 AGENT_RUNTIME_REPO="${AGENT_RUNTIME_REPO:-https://github.com/FBisca/agent-runtime.git}"
 LEGACY_CLAUDE_OVERLAY="$HOME/.claude/private-overlay/settings.overlay.json"
@@ -47,7 +45,7 @@ for arg in "$@"; do
     --no-stow) DO_STOW=0 ;;
     --upstream) DO_UPSTREAM=1 ;;
     --pi-only) DO_PI_ONLY=1 ;;
-    -h | --help) sed -n '2,17p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h | --help) sed -n '2,16p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown option: $arg (see --help)" ;;
   esac
 done
@@ -65,8 +63,8 @@ clone_if_missing() { # dir url
 
 # --- skills -----------------------------------------------------------------
 # ~/.claude/skills and ~/.agents/skills are real directories, so `npx skills add` and the
-# claude.ai synced skills never write into a repo. Each skill from agent-skills and
-# agent-fleet is a symlink into them.
+# claude.ai synced skills never write into a repo. Each skill from agent-skills
+# is a symlink into them.
 
 resolve_dir() { # symlink -> physical directory it points to (empty when dangling)
   local target
@@ -78,12 +76,10 @@ resolve_dir() { # symlink -> physical directory it points to (empty when danglin
 
 SKILL_SRCS=()
 collect_skill_sources() {
-  local repo dir
-  for repo in "$AGENT_SKILLS_DIR" "$AGENT_FLEET_DIR"; do
-    [[ -d "$repo/skills" ]] || continue
-    for dir in "$repo"/skills/*/; do
-      if [[ -d "$dir" ]]; then SKILL_SRCS+=("${dir%/}"); fi
-    done
+  local dir
+  [[ -d "$AGENT_SKILLS_DIR/skills" ]] || return 0
+  for dir in "$AGENT_SKILLS_DIR"/skills/*/; do
+    if [[ -d "$dir" ]]; then SKILL_SRCS+=("${dir%/}"); fi
   done
 }
 
@@ -186,7 +182,7 @@ setup_skills() {
       ln -s "$entry" "$claude/$name"
     fi
   done
-  ok "skills linked into $claude and $agents (${#SKILL_SRCS[@]} from agent-skills and agent-fleet)"
+  ok "skills linked into $claude and $agents (${#SKILL_SRCS[@]} from agent-skills)"
 
   if [[ "$DO_UPSTREAM" -eq 1 ]]; then
     [[ -x "$AGENT_SKILLS_DIR/scripts/install-upstream.sh" ]] || die "no install-upstream.sh in $AGENT_SKILLS_DIR"

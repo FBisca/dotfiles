@@ -59,11 +59,11 @@ cd ~/developer/dotfiles
 5. Sets Pi up: `~/.pi/agent/settings.json` from `agents/.pi/settings.base.json` plus the private overlay, and reports the skills Pi will find. It never writes credentials and never installs the Pi binary.
 6. Stows every module.
 
-Options: `--upstream` also reinstalls the upstream skills that `agent-skills` lists in its lock file (`scripts/install-upstream.sh`), such as `impeccable`, the current upstream of the former `frontend-design` skill; `--no-stow` skips Stow; `--pi-only` links the skills and sets Pi up, leaving Claude Code and Codex alone. Directories and clone URLs are overridable with `AGENT_SKILLS_DIR`, `AGENT_RUNTIME_DIR`, `AGENT_FLEET_DIR`, `AGENT_SKILLS_REPO` and `AGENT_RUNTIME_REPO` (see `./install.sh --help`).
+Options: `--upstream` also reinstalls the upstream skills that `agent-skills` lists in its lock file (`scripts/install-upstream.sh`), such as `impeccable`, the current upstream of the former `frontend-design` skill; `--no-stow` skips Stow; `--pi-only` links the skills and sets Pi up, leaving Claude Code and Codex alone. Directories and clone URLs are overridable with `AGENT_SKILLS_DIR`, `AGENT_RUNTIME_DIR`, `AGENT_SKILLS_REPO` and `AGENT_RUNTIME_REPO` (see `./install.sh --help`).
 
 ### Private overlay
 
-Public base config lives in `agents/.claude/settings.base.json` and `agents/.codex/config.base.toml`. Anything machine- or work-specific goes in an overlay kept outside this repo: `claude-settings.json` and `codex-config.toml` under `$DOTFILES_PRIVATE` (default `~/developer/agent-fleet/overlay`). Claude's overlay also falls back to `~/.claude/private-overlay/settings.overlay.json`. The overlay is optional; without it the live files equal the base. Pi has its own overlay file there, `pi-settings.json` (see [Pi](#pi)).
+Public base config lives in `agents/.claude/settings.base.json` and `agents/.codex/config.base.toml`. Anything machine- or work-specific goes in an overlay kept outside this repo: `claude-settings.json` and `codex-config.toml` under `$DOTFILES_PRIVATE` (default `~/.config/dotfiles-private`). Claude's overlay also falls back to `~/.claude/private-overlay/settings.overlay.json`. The overlay is optional; without it the live files equal the base. Pi has its own overlay file there, `pi-settings.json` (see [Pi](#pi)).
 
 `scripts/merge-config.py` deep-merges them: tables merge, arrays concatenate, later values win. A key ending in `!` in the overlay (`"args!" = [...]`) replaces the base value instead of concatenating, for argv-like arrays that must not grow. The result is parsed back before it atomically replaces the live file, so a bad overlay fails the install and leaves the existing file alone.
 

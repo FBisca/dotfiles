@@ -23,24 +23,19 @@ class SkillsLinkingTest(HomeCase):
     def names(self, directory):
         return sorted(p.name for p in directory.iterdir())
 
-    def test_S7_every_public_and_fleet_skill_is_linked_into_both_homes(self):
+    def test_S7_every_public_skill_is_linked_into_both_homes(self):
         self.install()
         for home in (".claude/skills", ".agents/skills"):
             directory = self.home / home
             self.assertTrue(directory.is_dir() and not directory.is_symlink(), home)
-            self.assertEqual(self.names(directory), ["alpha", "beta", "secret"])
+            self.assertEqual(self.names(directory), ["alpha", "beta"])
             self.assertEqual((directory / "alpha").resolve(), self.skills / "skills" / "alpha")
-            self.assertEqual((directory / "secret").resolve(), self.fleet / "skills" / "secret")
 
     def test_S7_install_is_idempotent(self):
         self.install()
         first = {p: p.resolve() for p in (self.home / ".claude/skills").iterdir()}
         self.install()
         self.assertEqual(first, {p: p.resolve() for p in (self.home / ".claude/skills").iterdir()})
-
-    def test_S7_missing_fleet_is_skipped(self):
-        self.install(AGENT_FLEET_DIR=self.tmp / "absent")
-        self.assertEqual(self.names(self.home / ".claude/skills"), ["alpha", "beta"])
 
     def test_S7_migrates_symlinked_skills_dir_and_preserves_data(self):
         old = self.tmp / "old-skills"

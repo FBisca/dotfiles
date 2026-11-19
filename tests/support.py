@@ -62,12 +62,11 @@ class HomeCase(unittest.TestCase):
         self.home.mkdir()
         self.dev = self.home / "developer"
         self.skills = make_repo(self.dev / "agent-skills", ["alpha", "beta"])
-        self.fleet = make_repo(self.dev / "agent-fleet", ["secret"])
         self.runtime = make_runtime_stub(self.dev / "agent-runtime")
 
     def env(self, **extra):
         env = {"PATH": os.environ["PATH"], "HOME": str(self.home),
-               "AGENT_SKILLS_DIR": str(self.skills), "AGENT_FLEET_DIR": str(self.fleet),
+               "AGENT_SKILLS_DIR": str(self.skills),
                "AGENT_RUNTIME_DIR": str(self.runtime), "DOTFILES_PRIVATE": str(self.tmp / "no-overlay")}
         env.update({k: str(v) for k, v in extra.items()})
         return env

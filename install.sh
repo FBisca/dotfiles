@@ -305,6 +305,7 @@ PI_BASE_SETTINGS="$ROOT/agents/.pi/settings.base.json"
 PI_AGENTS_MD="$ROOT/agents/.pi/AGENTS.md"
 PI_WEB_SEARCH_CONFIG="$ROOT/agents/.pi/pi-web-search-lite.config.json"
 PI_STARLINE_CONFIG="$ROOT/agents/.pi/starline.base.json"
+PI_TOKENS_EXT="$ROOT/agents/.pi/extensions/starline-tokens.ts"
 PI_RTK_CONFIG="$ROOT/agents/.pi/rtk-optimizer.base.json"
 PI_OLLAMA_CLOUD_CONFIG="$ROOT/agents/.pi/ollama-cloud.base.json"
 PI_PERMISSION_CONFIG="$ROOT/agents/.pi/permission-system.base.json"
@@ -432,6 +433,25 @@ setup_pi_starline() { # agent_dir
   fi
   mv -f "$new" "$live"
   ok "Pi starline config ready at $live"
+}
+
+# Starline has no tokens pill of its own (the old one merged into context); this tracked
+# extension publishes the context token count as the `tokens` status, which the starline
+# base places between context and cost. Pi auto-discovers it from <pi agent dir>/extensions/,
+# so it is copied there as a real file; no backup, a stray .ts there would load twice.
+setup_pi_tokens_ext() { # agent_dir
+  local live="$1/extensions/starline-tokens.ts"
+  if [[ ! -f "$PI_TOKENS_EXT" ]]; then
+    warn "no tracked tokens extension at $PI_TOKENS_EXT; nothing was written"
+    return 0
+  fi
+  mkdir -p "$(dirname "$live")" || { warn "could not create $(dirname "$live"); the tokens extension was not installed"; return 0; }
+  if [[ -f "$live" ]] && cmp -s "$PI_TOKENS_EXT" "$live"; then
+    ok "Pi tokens extension ready at $live"
+    return 0
+  fi
+  cp "$PI_TOKENS_EXT" "$live" || { warn "could not copy the tokens extension to $live"; return 0; }
+  ok "Pi tokens extension ready at $live"
 }
 
 # The RTK optimizer, Ollama Cloud and permission-system extensions each read one JSON file
@@ -632,6 +652,7 @@ setup_pi() {
   setup_pi_instructions "$agent_dir"
   setup_pi_web_search "$agent_dir"
   setup_pi_starline "$agent_dir"
+  setup_pi_tokens_ext "$agent_dir"
   setup_pi_extension_json "$PI_RTK_CONFIG" "$agent_dir/extensions/pi-rtk-optimizer/config.json"
   setup_pi_extension_json "$PI_OLLAMA_CLOUD_CONFIG" "$agent_dir/ollama-cloud.json"
   setup_pi_extension_json "$PI_PERMISSION_CONFIG" "$agent_dir/extensions/pi-permission-system/config.json"

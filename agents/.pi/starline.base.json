@@ -43,6 +43,11 @@
 		"editorAccent": "$blue",
 		"editorBorder": "$line"
 	},
+	"extensionStatuses": {
+		"colors": {
+			"tokens": "bold bg:$blue fg:$bg"
+		}
+	},
 	"pill": {
 		"segments": [
 			"cwd",
@@ -50,6 +55,7 @@
 			"model",
 			"thinking",
 			"context",
+			"extensionStatus:tokens",
 			"cost",
 			"tps",
 			"queue",

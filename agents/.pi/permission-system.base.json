@@ -73,7 +73,8 @@
       "~/.agents": "allow",
       "~/.agents/*": "allow",
       "/tmp/*": "allow",
-      "/private/tmp/*": "allow"
+      "/private/tmp/*": "allow",
+      "/var/folders/*": "allow"
     }
   },
   "promptNotifications": [

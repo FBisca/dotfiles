@@ -3,10 +3,23 @@
 # makes `-p worker` fail. Stowed from here into ~/.codex.
 model = "gpt-6.1-terra"
 approval_policy = "never"
-sandbox_mode = "workspace-write"
+sandbox_mode = "danger-full-access"
 model_reasoning_effort = "medium"
 
 # Workers write task results to orchestrate run directories; without this root the sandbox
 # blocks shell writes there ("operation not permitted"), though the patch tool still works.
 [sandbox_workspace_write]
 writable_roots = ["~/.local/state/orchestrate"]
+
+[tui]
+status_line = [
+    "model-with-reasoning",
+    "current-dir",
+    "thread-name",
+    "model",
+    "reasoning",
+    "context-remaining",
+    "context-used",
+    "weekly-limit",
+]
+status_line_use_colors = true

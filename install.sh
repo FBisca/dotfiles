@@ -306,6 +306,7 @@ setup_config() {
 PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 PI_SKILL_DIR="$HOME/.agents/skills"
 PI_BASE_SETTINGS="$ROOT/agents/.pi/settings.base.json"
+PI_AGENTS_MD="$ROOT/agents/.pi/AGENTS.md"
 PI_WEB_SEARCH_CONFIG="$ROOT/agents/.pi/pi-web-search-lite.config.json"
 PI_REQUIRED_SKILLS=(start-planning grilling)
 
@@ -338,6 +339,31 @@ setup_pi_settings() { # agent_dir
   fi
   mv -f "$new" "$live" # replaces a symlink to an old file without touching its target
   ok "Pi settings ready at $live"
+}
+
+# Pi reads user instructions only from <agent dir>/AGENTS.md and the cwd's ancestors;
+# it never reads ~/.agents/AGENTS.md and does not expand Claude-style @imports. So the
+# live file is generated: the shared global rules plus the Pi-only section, with the
+# dangling @RTK.md import line dropped. A file that differs is backed up, never lost.
+setup_pi_instructions() { # agent_dir
+  local live="$1/AGENTS.md"
+  local shared="$ROOT/agents/.agents/AGENTS.md"
+  local new="$live.new.$$"
+  if [[ ! -f "$shared" || ! -f "$PI_AGENTS_MD" ]]; then
+    warn "tracked instructions missing ($shared or $PI_AGENTS_MD); Pi instructions left untouched"
+    return 0
+  fi
+  {
+    grep -v '^@RTK\.md$' "$shared"
+    printf '\n'
+    cat "$PI_AGENTS_MD"
+  } > "$new" || { rm -f "$new"; warn "could not generate $live; it was left untouched"; return 0; }
+  if [[ -f "$live" ]] && ! cmp -s "$live" "$new"; then
+    cp -L "$live" "$live.bak-$(date +%Y%m%d%H%M%S)"
+    warn "$live changed; the previous copy was saved as $live.bak-*"
+  fi
+  mv -f "$new" "$live" # replaces a symlink without touching its target
+  ok "Pi instructions ready at $live (global rules + Pi section)"
 }
 
 # Pi's web search extension (npm:pi-web-search-lite) reads one JSON file of its own:
@@ -536,6 +562,7 @@ setup_pi() {
   fi
   mkdir -p "$agent_dir" || { warn "could not create $agent_dir; Pi setup skipped"; return 0; }
   setup_pi_settings "$agent_dir"
+  setup_pi_instructions "$agent_dir"
   setup_pi_web_search "$agent_dir"
   report_pi_skills
   report_pi_rtk

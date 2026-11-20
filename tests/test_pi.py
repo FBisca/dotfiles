@@ -156,7 +156,9 @@ class PiBootstrapTest(HomeCase):
         self.assertEqual(entry["command"], "python3")
         self.assertEqual(entry["args"], [str(self.runtime / "server" / "mcp_server.py")])
         self.assertEqual(entry["env"], {"AGENT_RUNTIME_DISPATCH": "1"})
-        self.assertEqual(entry["exposure"], "direct")
+        # Deferred, so Pi's tool_search finds them; report stays declared for workers.
+        self.assertEqual(entry["exposure"], "deferred")
+        self.assertEqual(entry["toolExposure"], {"report": "direct"})
         self.assertEqual(entry["timeout"], 600)
 
     def test_the_user_own_pi_mcp_servers_survive_the_registration(self):

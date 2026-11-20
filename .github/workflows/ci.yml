@@ -28,8 +28,8 @@ jobs:
       - name: stow dry run into a clean HOME
         run: |
           export HOME="$(mktemp -d)"
-          mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents" "$HOME/.config/agent-runtime"
-          for module in git zsh nvim mise gh ghostty fzf slack agents bin; do
+          mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents" "$HOME/.config/agent-runtime" "$HOME/.config/herdr"
+          for module in git zsh nvim mise gh ghostty herdr fzf slack agents bin; do
             stow -n -v -t "$HOME" "$module"
           done
 

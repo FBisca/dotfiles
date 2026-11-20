@@ -14,7 +14,8 @@ It started as a fork of [rodrigopsasaki](https://github.com/rodrigopsasaki)'s do
 | `zsh` | modular config sourced from `.zshrc`, fzf, a git-ignored secrets loader ([readme](zsh/README.md)) |
 | `nvim` | Lua config; lazy.nvim bootstraps itself ([readme](nvim/README.md)) |
 | `mise`, `gh`, `fzf` | runtimes, GitHub CLI, fuzzy finder ([mise](mise/README.md), [gh](gh/README.md)) |
-| `ghostty`, `slack` | terminal and app settings |
+| `ghostty`, `herdr`, `slack` | terminal and app settings |
+| `Brewfile` | Homebrew formulae, casks and VS Code extensions: `brew bundle` |
 | `agents` | Claude Code, Codex and Pi: base settings, custom agents, status line, instructions |
 | `bin` | small scripts on `PATH`, e.g. `wait-checks` (block until a PR's checks finish) |
 
@@ -139,7 +140,8 @@ dotfiles/
 ├── bin/         # scripts on PATH via ~/bin
 ├── scripts/     # merge-config.py
 ├── tests/       # contract and installer tests
-├── git/ zsh/ nvim/ mise/ gh/ ghostty/ fzf/ slack/
+├── git/ zsh/ nvim/ mise/ gh/ ghostty/ herdr/ fzf/ slack/
+├── Brewfile     # brew bundle
 └── install.sh
 ```
 

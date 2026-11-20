@@ -662,14 +662,29 @@ setup_pi() {
   info "authorise a provider inside Pi with /login (or export its API key); this installer never writes credentials"
 }
 
+# --- zsh ------------------------------------------------------------------------
+# .zshrc loads the powerlevel10k theme and two plugins from Oh My Zsh's custom dir.
+# Oh My Zsh itself installs via its own script, so it is only reported when missing.
+setup_zsh_plugins() {
+  local custom="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+  if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
+    warn "Oh My Zsh not installed; .zshrc needs it: sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" \"\" --unattended --keep-zshrc"
+    return 0
+  fi
+  clone_if_missing "$custom/themes/powerlevel10k" https://github.com/romkatv/powerlevel10k.git
+  clone_if_missing "$custom/plugins/zsh-autosuggestions" https://github.com/zsh-users/zsh-autosuggestions.git
+  clone_if_missing "$custom/plugins/zsh-syntax-highlighting" https://github.com/zsh-users/zsh-syntax-highlighting.git
+  ok "zsh theme and plugins present"
+}
+
 # --- stow -----------------------------------------------------------------------
-MODULES=(git zsh nvim mise gh ghostty fzf slack agents bin)
+MODULES=(git zsh nvim mise gh ghostty herdr fzf slack agents bin)
 
 stow_modules() {
   command -v stow >/dev/null 2>&1 || die "GNU Stow is not installed (brew install stow), or pass --no-stow"
   # Real folders for agent homes: stow links only the tracked entries inside them, so
   # sessions, credentials and history never land in this repo.
-  mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents" "$HOME/.config/agent-runtime"
+  mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents" "$HOME/.config/agent-runtime" "$HOME/.config/herdr"
   local module
   for module in "${MODULES[@]}"; do
     if [[ -d "$module" ]]; then
@@ -696,6 +711,7 @@ install_pi_mcp "$PI_AGENT_DIR"
 report_pi_host_policy
 setup_rastro
 setup_config
+setup_zsh_plugins
 if [[ "$DO_STOW" -eq 1 ]]; then stow_modules; fi
 
 ok "done"
@@ -706,7 +722,8 @@ cat <<'EOF'
 Next steps:
   1. Restart your terminal, or: source ~/.zshrc
   2. Restart Claude Code and Codex so they pick up the generated config.
-  3. Optional tools: oh-my-zsh, mise, gh (gh auth login), Nerd Fonts, jq, ripgrep, fzf.
+  3. Apps and CLI tools: brew bundle (reads ./Brewfile)
+     Optional tools: mise, gh (gh auth login), Nerd Fonts, jq, ripgrep, fzf.
   4. Upstream skills: ./install.sh --upstream
   5. Pi: start it with 'pi', then /login to authorise a provider (the installer never writes credentials).
   6. Pi: 'pi mcp list' shows the agent-runtime server; a Pi lead needs the pi host in ~/.config/agent-runtime/hosts.json.

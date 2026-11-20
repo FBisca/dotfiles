@@ -159,6 +159,9 @@ class PiBootstrapTest(HomeCase):
         # Deferred, so Pi's tool_search finds them; report stays declared for workers.
         self.assertEqual(entry["exposure"], "deferred")
         self.assertEqual(entry["toolExposure"], {"report": "direct"})
+        # The one line Pi lists for a deferred server: it says what the tools are for.
+        for tool in ("spawn", "wait", "stop"):
+            self.assertIn(tool, entry["description"])
         self.assertEqual(entry["timeout"], 600)
 
     def test_the_user_own_pi_mcp_servers_survive_the_registration(self):

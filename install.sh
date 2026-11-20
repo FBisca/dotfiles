@@ -579,6 +579,7 @@ entry = {"command": "python3", "args": [server]} if server.endswith(".py") else 
 entry["env"] = {"AGENT_RUNTIME_DISPATCH": "1"}
 entry["exposure"] = "deferred"
 entry["toolExposure"] = {"report": "direct"}
+entry["description"] = "Start, wait for and stop worker agents (Claude, Codex, Pi): spawn, wait, status, stop, report"
 entry["timeout"] = 600
 
 data = {}

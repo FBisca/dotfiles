@@ -1,0 +1,3 @@
+# Ghostty config. Options: `ghostty +show-config --default --docs` or https://ghostty.org/docs/config
+
+theme = Atom One Dark

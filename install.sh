@@ -663,7 +663,7 @@ setup_pi() {
 }
 
 # --- stow -----------------------------------------------------------------------
-MODULES=(git zsh nvim mise gh kitty wezterm fzf env slack agents bin)
+MODULES=(git zsh nvim mise gh ghostty fzf slack agents bin)
 
 stow_modules() {
   command -v stow >/dev/null 2>&1 || die "GNU Stow is not installed (brew install stow), or pass --no-stow"

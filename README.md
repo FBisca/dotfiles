@@ -13,8 +13,8 @@ It started as a fork of [rodrigopsasaki](https://github.com/rodrigopsasaki)'s do
 | `git` | aliases, delta diffs, scoped identity overrides ([readme](git/README.md)) |
 | `zsh` | modular config sourced from `.zshrc`, fzf, a git-ignored secrets loader ([readme](zsh/README.md)) |
 | `nvim` | Lua config; lazy.nvim bootstraps itself ([readme](nvim/README.md)) |
-| `mise`, `gh`, `fzf`, `env` | runtimes, GitHub CLI, fuzzy finder, environment ([mise](mise/README.md), [gh](gh/README.md)) |
-| `kitty`, `wezterm`, `slack` | terminal and app settings |
+| `mise`, `gh`, `fzf` | runtimes, GitHub CLI, fuzzy finder ([mise](mise/README.md), [gh](gh/README.md)) |
+| `ghostty`, `slack` | terminal and app settings |
 | `agents` | Claude Code, Codex and Pi: base settings, custom agents, status line, instructions |
 | `bin` | small scripts on `PATH`, e.g. `wait-checks` (block until a PR's checks finish) |
 
@@ -139,7 +139,7 @@ dotfiles/
 ├── bin/         # scripts on PATH via ~/bin
 ├── scripts/     # merge-config.py
 ├── tests/       # contract and installer tests
-├── git/ zsh/ nvim/ mise/ gh/ fzf/ env/ kitty/ wezterm/ slack/
+├── git/ zsh/ nvim/ mise/ gh/ ghostty/ fzf/ slack/
 └── install.sh
 ```
 

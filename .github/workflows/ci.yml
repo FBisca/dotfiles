@@ -29,7 +29,7 @@ jobs:
         run: |
           export HOME="$(mktemp -d)"
           mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents" "$HOME/.config/agent-runtime"
-          for module in git zsh nvim mise gh kitty wezterm fzf env slack agents bin; do
+          for module in git zsh nvim mise gh ghostty fzf slack agents bin; do
             stow -n -v -t "$HOME" "$module"
           done
 

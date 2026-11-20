@@ -332,12 +332,14 @@ class PiBootstrapTest(HomeCase):
             except (UnicodeDecodeError, OSError):
                 continue
             self.assertIsNone(re.search(r"sk-[A-Za-z0-9]{16,}", text), path)
-            # AGENTS.md is prose: "max_output_tokens" is a codemode option, not a credential.
-            if path.startswith("agents/.pi/") and not path.endswith("AGENTS.md"):
-                # "qwen-token-plan" is a provider id, not a credential.
-                scanned = text.lower().replace("qwen-token-plan", "")
-                for secret in ("api_key", "apikey", "bearer", "password", "secret", "token"):
-                    self.assertNotIn(secret, scanned, f"{path}: {secret}")
+            if path.startswith("agents/.pi/"):
+                # A credential is a secret-named key holding a literal value, or a bearer header;
+                # the bare words ("tokens" counted for the status bar, "qwen-token-plan") are fine.
+                assigned = re.search(
+                    r"(api_?key|password|secret|token)[\"']?\s*[:=]\s*[\"'][^\"'$\s]{8,}[\"']",
+                    text, re.IGNORECASE)
+                self.assertIsNone(assigned, f"{path}: {assigned and assigned.group(0)}")
+                self.assertIsNone(re.search(r"bearer\s+[A-Za-z0-9._~+/-]{16,}", text, re.IGNORECASE), path)
 
 
 if __name__ == "__main__":

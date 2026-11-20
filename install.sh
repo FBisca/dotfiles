@@ -572,10 +572,13 @@ import sys
 import tempfile
 
 path, server, backup = sys.argv[1], sys.argv[2], sys.argv[3]
-# The runtime's own entry: its own server path, the durable dispatch store, direct exposure.
+# The runtime's own entry: its own server path, the durable dispatch store, its tools deferred
+# so Pi's tool_search finds them (it skips a tool already declared), and report declared so a
+# worker never has to find it first. agent-runtime's pi_mcp.entry() writes the same.
 entry = {"command": "python3", "args": [server]} if server.endswith(".py") else {"command": server, "args": []}
 entry["env"] = {"AGENT_RUNTIME_DISPATCH": "1"}
-entry["exposure"] = "direct"
+entry["exposure"] = "deferred"
+entry["toolExposure"] = {"report": "direct"}
 entry["timeout"] = 600
 
 data = {}

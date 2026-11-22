@@ -1,4 +1,5 @@
 {
+  "lens": { "enabled": false },
   "lsp": { "disabledServers": ["typos"] },
   "format": { "enabled": false },
   "autofix": { "enabled": false },

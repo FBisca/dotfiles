@@ -26,8 +26,9 @@ class PiLensTest(HomeCase):
         self.assertTrue(self.lens_path().is_file(), "pi-lens reads ~/.pi-lens/config.json")
         self.assertEqual(json.loads(self.lens_path().read_text()), json.loads(LENS_BASE.read_text()))
 
-    def test_the_tracked_stance_is_read_only(self):
+    def test_the_tracked_stance_is_disabled_and_read_only(self):
         stance = json.loads(LENS_BASE.read_text())
+        self.assertIs(stance["lens"]["enabled"], False, "benchmark: no LSP calls, warmup + read-guard cost only")
         self.assertIn("typos", stance["lsp"]["disabledServers"])
         self.assertIs(stance["format"]["enabled"], False)
         self.assertIs(stance["autofix"]["enabled"], False)

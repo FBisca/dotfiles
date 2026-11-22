@@ -309,6 +309,7 @@ PI_TOKENS_EXT="$ROOT/agents/.pi/extensions/starline-tokens.ts"
 PI_RTK_CONFIG="$ROOT/agents/.pi/rtk-optimizer.base.json"
 PI_OLLAMA_CLOUD_CONFIG="$ROOT/agents/.pi/ollama-cloud.base.json"
 PI_PERMISSION_CONFIG="$ROOT/agents/.pi/permission-system.base.json"
+PI_LENS_CONFIG="$ROOT/agents/.pi/pi-lens.base.json"
 PI_REQUIRED_SKILLS=(start-planning grilling)
 
 # Pi's settings.json is the user's own file: base and private overlay are merged under
@@ -457,6 +458,7 @@ setup_pi_tokens_ext() { # agent_dir
 # The RTK optimizer, Ollama Cloud and permission-system extensions each read one JSON file
 # of their own: <pi agent dir>/extensions/pi-rtk-optimizer/config.json,
 # <pi agent dir>/ollama-cloud.json and <pi agent dir>/extensions/pi-permission-system/config.json.
+# pi-lens reads its global config outside the agent dir, at ~/.pi-lens/config.json.
 # Tracked bases hold the defaults, merged under the user's live file the same way Pi's own
 # settings are: what the user chose wins, a rerun takes nothing back, and a file that is not
 # valid JSON is backed up and left alone. Neither base holds a credential: the Ollama key
@@ -660,6 +662,12 @@ setup_pi() {
   setup_pi_extension_json "$PI_RTK_CONFIG" "$agent_dir/extensions/pi-rtk-optimizer/config.json"
   setup_pi_extension_json "$PI_OLLAMA_CLOUD_CONFIG" "$agent_dir/ollama-cloud.json"
   setup_pi_extension_json "$PI_PERMISSION_CONFIG" "$agent_dir/extensions/pi-permission-system/config.json"
+  # pi-lens (npm:pi-lens) is declared in the tracked base at user scope, so it loads in
+  # every repo: Dart files use the Flutter SDK's language server from PATH, TypeScript
+  # gets typescript-language-server (pi-lens installs it once Pi trusts the project).
+  # The tracked base holds the read-only stance - no format/autofix writes, typos off -
+  # merged under the user's global file; a repo's own .pi-lens.json still wins per field.
+  setup_pi_extension_json "$PI_LENS_CONFIG" "$HOME/.pi-lens/config.json"
   report_pi_skills
   report_pi_rtk
   report_pi_web_search_key

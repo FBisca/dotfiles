@@ -1,7 +1,7 @@
 {
   "$schema": "https://pi.dev/schemas/settings.schema.json",
   "enableSkillCommands": true,
-  "packages": ["npm:pi-rtk-optimizer@0.9.0", "npm:pi-web-search-lite", "npm:pi-starline", "npm:pi-compact-tools", "npm:pi-context-view", "npm:pi-ollama-cloud", "npm:@gotgenes/pi-permission-system"],
+  "packages": ["npm:pi-rtk-optimizer@0.9.0", "npm:pi-web-search-lite", "npm:pi-starline", "npm:pi-compact-tools", "npm:pi-context-view", "npm:pi-ollama-cloud", "npm:@gotgenes/pi-permission-system", "npm:pi-lens"],
   "defaultProvider": "qwen-token-plan",
   "defaultModel": "qwen4-max-preview",
   "modelThinkingLevels": { "minimax/MiniMax-M3.1-Flash": "max", "qwen-token-plan/qwen4-max-preview": "medium" },

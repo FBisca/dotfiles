@@ -1,0 +1,6 @@
+{
+  "lsp": { "disabledServers": ["typos"] },
+  "format": { "enabled": false },
+  "autofix": { "enabled": false },
+  "actionableWarnings": { "autoFix": { "enabled": false } }
+}

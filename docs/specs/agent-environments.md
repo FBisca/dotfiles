@@ -1,6 +1,6 @@
 # Agent environments
 
-Paths: install.sh, agents/.pi/, agents/.stow-local-ignore, tests/test_pi.py, tests/test_pi_acceptance.py, docs/verification/pi-rtk.md, README.md
+Paths: install.sh, agents/.pi/, agents/.stow-local-ignore, tests/test_pi.py, tests/test_pi_acceptance.py, tests/test_pi_lens.py, docs/verification/pi-rtk.md, README.md
 
 The dotfiles installer owns one machine's agent environments. Claude Code and Codex are configured from `agents/.claude/settings.base.json` and `agents/.codex/config.base.toml`; Pi is configured from `agents/.pi/settings.base.json`. Each one is a tracked base merged with an optional private overlay and, for Claude Code and Codex, with the live file, so the user's own keys always win. The installer never writes credentials: they stay in the tool's own credential store, in the environment or in the private overlay.
 
@@ -11,6 +11,8 @@ Pi reaches the `agent-runtime` server through its own user-level `mcp.json`: the
 Pi's RTK optimizer is declared in the tracked base settings as the package `npm:pi-rtk-optimizer@0.9.0`, so Pi installs it at its next start and rewrites every bash command through the `rtk` binary, which prints the compact form of git, build and test output. The binary is a prerequisite this repo never installs: the installer detects it and reports the `brew install rtk` line when it is missing, and every command still runs unchanged without it.
 
 Pi's web search is the `npm:pi-web-search-lite` package, declared in the same tracked base. It reads one JSON file of its own, `<pi agent dir>/pi-web-search-lite/config.json`: the tracked base `agents/.pi/pi-web-search-lite.config.json` holds the defaults and the installer merges it under the user's file, so the user's own values win and a rerun changes nothing. The search key is never written: the extension reads `EXA_API_KEY` from the environment, and the installer reports that prerequisite without failing when it is missing. The extension's tools are declared `deferred` and Pi's own `tool_search` is enabled, so they cost nothing until the model needs them.
+
+Pi's real-time code feedback is the `npm:pi-lens` package, declared in the same tracked base at user scope, so it loads in every repo instead of being declared per project. Language servers follow each project's languages: the Dart server comes from the Flutter SDK on PATH, and pi-lens installs the TypeScript server once Pi trusts the project. Its global config `~/.pi-lens/config.json` is merged from the tracked base `agents/.pi/pi-lens.base.json` under the user's file, the same merge-under-live pattern as the other extension configs. The tracked stance is read-only - the `typos` spell server disabled, format, autofix and actionable-warnings autofix off - so pi-lens reports findings but never writes files outside the agent's own tools. A repo overrides any of it in its own `.pi-lens.json`, field by field; the installer writes no project files.
 
 ## Requirements
 
@@ -32,3 +34,6 @@ Pi's web search is the `npm:pi-web-search-lite` package, declared in the same tr
 - **R16** WHEN the live web-search configuration is not valid JSON, THEN it is backed up and left untouched. (from pi-web-search/S3)
 - **R17** WHEN the Pi configuration is installed, THEN no search credential appears in a tracked file, the key is read from the environment, and a missing `EXA_API_KEY` is reported without failing the install. (from pi-web-search/S4)
 - **R18** WHEN Pi starts with the tracked base settings, THEN it installs the declared package and the extension's `web_search` and `web_fetch` tools are discoverable through `tool_search`. (from pi-web-search/S5)
+- **R19** WHEN the installer sets Pi up, THEN the tracked Pi base declares the `npm:pi-lens` package at user scope, so Pi installs it at its next start and it loads in every project, and a live settings file with other packages keeps them all. (from pi-lens/S1)
+- **R20** WHEN the installer sets Pi up, THEN `~/.pi-lens/config.json` carries the tracked read-only stance - the `typos` server disabled, format, autofix and actionable-warnings autofix off - the user's own values in that file win over the tracked ones, and a rerun changes nothing. (from pi-lens/S2)
+- **R21** WHEN the live global pi-lens configuration is not valid JSON, THEN it is backed up and left untouched. (from pi-lens/S3)

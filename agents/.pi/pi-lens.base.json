@@ -1,4 +1,9 @@
 {
+  "lens": { "enabled": false },
+  "tools": { "lazy": false },
+  "readGuard": { "enabled": false },
+  "tests": { "enabled": false },
+  "contextInjection": { "requirePreExistingFixes": false },
   "lsp": { "disabledServers": ["typos"] },
   "format": { "enabled": false },
   "autofix": { "enabled": false },

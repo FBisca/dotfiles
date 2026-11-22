@@ -26,9 +26,14 @@ class PiLensTest(HomeCase):
         self.assertTrue(self.lens_path().is_file(), "pi-lens reads ~/.pi-lens/config.json")
         self.assertEqual(json.loads(self.lens_path().read_text()), json.loads(LENS_BASE.read_text()))
 
-    def test_the_tracked_stance_is_disabled_and_read_only(self):
+    def test_the_tracked_stance_is_disabled_and_optimal(self):
         stance = json.loads(LENS_BASE.read_text())
-        self.assertIs(stance["lens"]["enabled"], False, "benchmark: no LSP calls, warmup + read-guard cost only")
+        self.assertIs(stance["lens"]["enabled"], False, "disabled until an error-trap task proves value")
+        # cfg-active: the smoke-tested optimal stance for when /lens-toggle turns it on.
+        self.assertIs(stance["tools"]["lazy"], False, "LSP tools callable from turn one")
+        self.assertIs(stance["readGuard"]["enabled"], False, "no edit-without-read friction on bulk work")
+        self.assertIs(stance["tests"]["enabled"], False, "no on-write test runner duplicating repo gates")
+        self.assertIs(stance["contextInjection"]["requirePreExistingFixes"], False, "fix only errors own edits introduce")
         self.assertIn("typos", stance["lsp"]["disabledServers"])
         self.assertIs(stance["format"]["enabled"], False)
         self.assertIs(stance["autofix"]["enabled"], False)

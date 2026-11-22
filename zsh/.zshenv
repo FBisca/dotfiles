@@ -12,6 +12,13 @@ if [[ -d "$HOME/.cargo/bin" ]] && (( ! ${path[(Ie)$HOME/.cargo/bin]} )); then
   path+=("$HOME/.cargo/bin")
 fi
 
+# Flutter SDK (dart, flutter) and pub global binaries, for processes started outside an
+# interactive shell too: pi-lens's Dart language server and dart-analyze spawn `dart`.
+for d in "$HOME/developer/flutter/bin" "$HOME/.pub-cache/bin"; do
+  [[ -d "$d" ]] && (( ! ${path[(Ie)$d]} )) && path+=("$d")
+done
+unset d
+
 # Machine-only additions, never tracked.
 if [[ -f "$HOME/.zshenv.local" ]]; then
   source "$HOME/.zshenv.local"

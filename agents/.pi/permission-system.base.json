@@ -74,6 +74,7 @@
       "~/.agents/*": "allow",
       "~/.agent-orchestrator/*": "allow",
       "~/.local/*": "allow",
+      "*/.pi/agent/*": "allow",
       "/tmp/*": "allow",
       "/private/tmp/*": "allow",
       "/var/folders/*": "allow"

@@ -1,6 +1,16 @@
-- When reporting information to me, be extremely concise and sacrifice grammar for the sake of concision.
-- When delegating Codex do via agent-runtime `spawn` with `cli: "codex"`.
-- Never add a `Co-Authored-By` trailer naming Claude, Codex or any AI, nor a "Generated with" line, to a commit or PR body, even when the repo's history has them. My commits are mine alone.
+- When reporting information to me, be extremely concise.
+- When delegating between harnesses do via agent-runtime `spawn`.
+- Never add a `Co-Authored-By` trailer naming nor a "Generated with" line, to a commit or PR body, even when the repo's history has them. My commits are mine alone.
+
+## Answer footer
+
+End every answer with a `---` line, then a `## 80/20` section: the bottom line only, nothing new, because I read it first. Show a line only when it has content:
+
+- ✅ Result: always, one line.
+- 👉 Next: only if I must act; numbered, the action in bold.
+- ❓ Decide: only if the choice is mine.
+- ⚠️ Watch out: only a real risk.
+- 🔀 Git: only if a repo changed.
 
 ## Model classes
 

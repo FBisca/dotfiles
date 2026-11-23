@@ -23,3 +23,9 @@ unset d
 if [[ -f "$HOME/.zshenv.local" ]]; then
   source "$HOME/.zshenv.local"
 fi
+
+# Claude's tool shells run no Bun preload. With a flag in BUN_OPTIONS, `bun test <file>` runs
+# the package's `test` script instead of the test runner, and `"test": "bun test"` recurses.
+if [[ -n "${CLAUDECODE-}" ]]; then
+  unset BUN_OPTIONS
+fi
